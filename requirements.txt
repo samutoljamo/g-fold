@@ -1,0 +1,26 @@
+autopep8==1.6.0
+CVXcanon==0.1.0
+cvxopt==1.2.7
+cvxpy==0.4.9
+cvxpy-codegen @ git+https://github.com/moehle/cvxpy_codegen.git@8a936d12204dcd5e045286c203f74c34c0e68399
+cycler==0.10.0
+dill==0.3.4
+ecos==2.0.7.post1
+fastcache==1.1.0
+Jinja2==3.0.2
+kiwisolver==1.3.2
+MarkupSafe==2.0.1
+matplotlib==3.4.3
+multiprocess==0.70.12.2
+numpy==1.21.3
+osqp==0.6.2.post0
+Pillow==8.4.0
+pycodestyle==2.8.0
+pyparsing==3.0.1
+python-dateutil==2.8.2
+qdldl==0.1.5.post0
+scipy==1.7.1
+scs==2.1.4
+six==1.16.0
+toml==0.10.2
+toolz==0.11.1
