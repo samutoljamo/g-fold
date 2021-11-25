@@ -1,21 +1,19 @@
 OPTS = -Wall
-CC = gcc
+CC = g++
 LDFLAGS = -Lecos -lm
 CFLAGS = -Wall -fPIC
-INCLUDE = -Iecos/include  -Iecos/external/SuiteSparse_config -I/usr/include/python3.8
+INCLUDE = -Iecos/include  -Iecos/external/SuiteSparse_config -I/usr/include/python3.8 -I../extern/pybind11/include
 
 
-main: codegen.a ecos/libecos.a
-	g++ $(CFLAGS) $^ -o $@ $(LDFLAGS)
 
-bindings: bindings.o codegen.a ecos/libecos.a
+bindings: bindings.o codegen.a ecos/libecos.a lib.o
 	g++ -O3 $(CFLAGS) -shared -std=c++11 $(INCLUDE) $^ -o gfold`python3-config --extension-suffix`
 
 lib.o: lib.cpp
 	g++ $(CFLAGS) $(INCLUDE) -c $<
 
 bindings.o: bindings.cpp
-	g++ $(CFLAGS) `python3 -m pybind11 --includes` $(INCLUDE) -c $<
+	g++ $(CFLAGS) $(INCLUDE) -c $<
 
 codegen.a:  solver_intf.o codegen.o linop.o param.o lib.o
 	ar rcs $@ $^

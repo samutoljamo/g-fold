@@ -139,4 +139,5 @@ cython_debug/
 
 [0-9]*/
 
+.vscode/
 

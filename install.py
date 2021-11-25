@@ -10,9 +10,9 @@ def install(*args, deps=True):
     subprocess.run(arguments)
 
 if __name__ == '__main__':
-    install("wheel") # wheel first
+    install("wheel") # install wheel first
     install("git+https://github.com/moehle/cvxpy_codegen.git", deps=False) # dependencies are broken
     with open("requirements.txt", "r") as file:
         modules = file.read().splitlines()
-        for mod in modules:
+        for mod in modules: # deps must be installed in the correct order and cannot be installed at the same time
             install(mod)

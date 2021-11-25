@@ -1,0 +1,174 @@
+#ifndef LIB
+#define LIB
+#include "codegen.h"
+#include <algorithm>
+#include <iterator>
+#include <array>
+
+#define NUM {{num}}
+const double tol = 0.5;
+const double invphi = (2.2360679774997896964091736687313 - 1) / 2;
+const double invphi2 = (3 - 2.2360679774997896964091736687313) / 2;
+
+struct Vector{
+    double x,y,z;
+};
+struct Spacecraft{
+    double mass;
+    double fuel;
+    double a;
+    double min_thrust, max_thrust;
+    double max_angle;
+    double max_vel;
+    double glide_slope_angle;
+    Vector initial_position;
+    Vector initial_velocity;
+    Vector target_velocity;
+};
+
+struct Settings{
+    Vector gravity;
+    double maxit;
+};
+struct Result{
+    std::array<double, NUM> z; 
+    std::array<double, NUM> s;
+    std::array<std::array<double, 6>, NUM> x;
+    std::array<std::array<double, 3>, NUM> u;
+    double t;
+    int status;
+};
+
+
+class Problem{
+    public:
+        Settings settings;
+        Spacecraft spacecraft;
+        Problem(Settings s, Spacecraft sc){
+            settings = s;
+            spacecraft = sc;
+        }
+        
+        Result solve_at(double t){
+            _solve(t);
+            Result res;
+            for(int i = 0; i < NUM; i++){
+                std::copy(std::begin(_vars.x[i]), std::end(_vars.x[i]), std::begin(res.x[i]));
+                std::copy(std::begin(_vars.u[i]), std::end(_vars.u[i]), std::begin(res.u[i]));
+            }
+            for (size_t i = 0; i < NUM; i++)
+            {
+                res.s[i] = _vars.s[i][0];
+            }
+            for (size_t i = 0; i < NUM; i++)
+            {
+                res.z[i] = _vars.z[i][0];
+            }
+            res.t = t;
+            res.status = _work.status;
+            cg_cleanup(&_work);
+            return res;
+        }
+        
+        Result solve(double min_time, double max_time){
+            double t = gss(min_time, max_time);
+            Result res = solve_at(t);
+            return res;
+        }
+
+    private:
+        Params _params;
+        Work _work;
+        Vars _vars;
+    
+        double _solve(double t){
+            cg_init(&_work);
+            _work.solver_work->stgs->maxit = settings.maxit;
+            _params.initial_position[0] = spacecraft.initial_position.x;
+            _params.initial_position[1] = spacecraft.initial_position.y;
+            _params.initial_position[2] = spacecraft.initial_position.z;
+            _params.initial_vel[0] = spacecraft.initial_velocity.x;
+            _params.initial_vel[1] = spacecraft.initial_velocity.y;
+            _params.initial_vel[2] = spacecraft.initial_velocity.z;
+            _params.target_velocity[0] = spacecraft.target_velocity.x;
+            _params.target_velocity[1] = spacecraft.target_velocity.y;
+            _params.target_velocity[2] = spacecraft.target_velocity.z;
+            _params.log_mass = log(spacecraft.mass);
+            _params.dt = t / NUM;
+            _params.dt_squared = _params.dt * _params.dt;
+            _params.gravity[0] = settings.gravity.x;
+            _params.gravity[1] = settings.gravity.y;
+            _params.gravity[2] = settings.gravity.z;
+            _params.fuel_consumption = spacecraft.a;
+            _params.max_angle = cos((spacecraft.max_angle/180) * M_PI);
+            _params.min_thrust = spacecraft.min_thrust;
+            _params.max_thrust = spacecraft.max_thrust;
+            _params.max_vel = spacecraft.max_vel;
+            _params.sin_glide_slope = sin((spacecraft.glide_slope_angle/180) * M_PI);
+            _params.log_dry_mass = log(spacecraft.mass-spacecraft.fuel);
+            
+            for (size_t i = 0; i < NUM; i++)
+            {
+                _params.z0[i] = log(spacecraft.mass - spacecraft.a*spacecraft.max_thrust*i*_params.dt);
+                _params.exp_z0[i] = exp(-_params.z0[i]);
+            }
+            cg_solve(&_params, &_work, &_vars);
+            if(_work.status == 0){
+                //printf("Optimal value: %f time: %f\n", exp(-work->optval), t);
+                return _work.optval;
+            }
+
+            // if solve is unsuccessful --> try again with higher max iterations
+            if(_work.status==3){
+                cg_init(&_work);
+                _work.solver_work->stgs->maxit = 500;
+                cg_solve(&_params, &_work, &_vars);
+                if(_work.status == 0){
+                //printf("Optimal value: %f time: %f\n", exp(-work->optval), t);
+                    return _work.optval;
+                }
+            }
+            //printf("failed time: %f dode:%d\n", t, work->status);
+            // return a very large number to signal a very low mass(failed to converge)
+            return 10000;
+        }
+
+    double gss(double a, double b){
+        double h = b - a;
+        if (h <= tol){
+            return (a+b)/2;
+        }
+        int n = ceil(log(tol / h) / log(invphi));
+
+        double c = a + invphi2 * h;
+        double d = a + invphi * h;
+        double yc = _solve(c);
+        double yd = _solve(d);
+
+        for (int k = 0; k < n; k++)
+        {
+            if(yc < yd){
+                b = d;
+                d = c;
+                yd = yc;
+                h = invphi * h;
+                c = a + invphi2 * h;
+                yc = _solve(c);
+            }else{
+                a = c;
+                c = d;
+                yc = yd;
+                h = invphi * h;
+                d = a + invphi * h;
+                yd = _solve(d);
+            }
+        }
+        if (yc < yd){
+            return (a+d)/2;
+        }else{
+            return (c+b)/2;
+        }
+    };
+    
+};
+#endif
