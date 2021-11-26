@@ -44,20 +44,20 @@ time = np.arange(0, res.t, res.t/num)
 # plot the results
 fig = plt.figure()
 
-ax = fig.add_subplot(411)
+ax = fig.add_subplot(221)
 ax.set_ylim(0, 100)
 ax.plot(time, thrust, label="thrust")
 ax.legend()
 
-ax = fig.add_subplot(412)
+ax = fig.add_subplot(222)
 ax.plot(np.array(res.x)[:, 1], np.array(res.x)[:, 2], label="surface trajectory")
 ax.legend()
 
-ax = fig.add_subplot(413)
+ax = fig.add_subplot(223)
 ax.plot(time, np.degrees(np.arccos(np.divide(np.array(res.u)[:, 0], res.s))), label="attitude")
 ax.legend()
 
-ax = fig.add_subplot(414)
+ax = fig.add_subplot(224)
 ax.plot(time, np.array(res.x)[:, 0], label="height")
 ax.legend()
 if res.status == 0: # 0 == success
