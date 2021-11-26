@@ -3,6 +3,8 @@ This is my python/c/c++ implementation of the G-FOLD algorithm based on http://l
 The problem is described using CVXPY/python and c/c++ code is generated using [CVXPY-CODEGEN](https://github.com/moehle/cvxpy_codegen)
 
 G-FOLD is a convex-optimization algorithm. It generates the fuel-optimal path to land the spacecraft at the desired location. You can use this program to solve/plot the fuel-optimal path.
+Here's an example:
+![graph](example.png)
 
 
 ## Prerequisites
