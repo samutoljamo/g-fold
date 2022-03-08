@@ -1,3 +1,4 @@
+setuptools==58.0.0
 cvxpy==0.4.9
 matplotlib
 ecos>=2
