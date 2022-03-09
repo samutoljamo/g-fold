@@ -2,7 +2,7 @@ OPTS = -Wall
 CC = g++
 LDFLAGS = -Lecos -lm
 CFLAGS = -Wall -fPIC
-INCLUDE = -Iecos/include  -Iecos/external/SuiteSparse_config -I/usr/include/python3.8 -I../extern/pybind11/include
+INCLUDE = -Iecos/include  -Iecos/external/SuiteSparse_config -I/usr/include/python3.9 -I../extern/pybind11/include
 
 
 
