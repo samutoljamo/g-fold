@@ -4,5 +4,6 @@ matplotlib
 ecos>=2
 numpy>=1.9
 jinja2>=2.8
+markupsafe==2.0.1
 scipy>=0.15
 CVXcanon==0.1.0
