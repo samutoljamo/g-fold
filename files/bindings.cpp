@@ -15,11 +15,16 @@ PYBIND11_MODULE(gfold, m) {
             .def_readwrite("t", &Result::t);
     py::class_<Vector>(m, "Vector")
             .def(py::init<>())
+            .def(py::init<double, double, double>())
             .def_readwrite("x", &Vector::x)
             .def_readwrite("y", &Vector::y)
             .def_readwrite("z", &Vector::z);
     py::class_<Spacecraft>(m, "Spacecraft")
             .def(py::init<>())
+            .def(py::init<double, double, double,
+                          double, double, double,
+                          double, double, Vector,
+                          Vector, Vector>())
             .def_readwrite("mass", &Spacecraft::mass)
             .def_readwrite("fuel", &Spacecraft::fuel)
             .def_readwrite("a", &Spacecraft::a)
@@ -33,6 +38,8 @@ PYBIND11_MODULE(gfold, m) {
             .def_readwrite("target_velocity", &Spacecraft::target_velocity);
     py::class_<Settings>(m, "Settings")
             .def(py::init<>())
+            .def(py::init<Vector>())
+            .def(py::init<Vector, double>())
             .def_readwrite("gravity", &Settings::gravity)
             .def_readwrite("maxit", &Settings::maxit);
     py::class_<Problem>(m, "Problem")
