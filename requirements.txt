@@ -1,9 +1,0 @@
-setuptools==58.0.0
-cvxpy==0.4.9
-matplotlib
-ecos>=2
-numpy>=1.9
-jinja2>=2.8
-markupsafe==2.0.1
-scipy>=0.15
-CVXcanon==0.1.0
