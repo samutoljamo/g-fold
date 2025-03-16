@@ -1,36 +1,33 @@
-# G-FOLD / Fuel Optimal Large Divert Guidance Algorithm
+# G-FOLD: Fuel Optimal Large Divert Guidance Algorithm
 
-This is my python/c/c++ implementation of the G-FOLD algorithm based on http://larsblackmore.com/iee_tcst13.pdf and https://www.ri.cmu.edu/pub_files/2016/4/Fuel-Optimal-Spacecraft-Guidance-for-Landing-in-Planetary-Pits-Neal-Bhasin.pdf. \
-The problem is described using CVXPY/python and c/c++ code is generated using CVXPYGen.
+This project implements the G-FOLD algorithm for spacecraft landing trajectory optimization based on:
+- [Blackmore et al. "Minimum-Landing-Error Powered-Descent Guidance for Mars Landing Using Convex Optimization"](http://larsblackmore.com/iee_tcst13.pdf)
+- [Neal et al. "Fuel-Optimal Spacecraft Guidance for Landing in Planetary Pits"](https://www.ri.cmu.edu/pub_files/2016/4/Fuel-Optimal-Spacecraft-Guidance-for-Landing-in-Planetary-Pits-Neal-Bhasin.pdf)
 
-G-FOLD is a convex-optimization algorithm. It generates the fuel-optimal path to land the spacecraft at the desired location. You can use this program to solve/plot the fuel-optimal path. \
-Here's an example:
-![graph](example.png)
+G-FOLD is a convex-optimization algorithm that generates the fuel-optimal path to land a spacecraft at the desired location.
 
-## Running from source
+![graph](generator/example.png)
 
-### Prerequisites
+## Project Structure
 
-You need to install [Rust](https://www.rust-lang.org/tools/install) and [Eigen](https://github.com/oxfordcontrol/Clarabel.cpp#installation)
+This repository is organized into language-specific implementations:
 
-Clone the repository
+- `generator/` - Python package that implements G-FOLD and generates C/C++ code using CVXPYGen
+- Additional language implementations will be added in the future
 
-```
-git clone --recurse-submodules https://github.com/samutoljamo/g-fold.git
+## Getting Started
+
+Choose the implementation that best fits your needs:
+
+- For Python usage or code generation, see [Generator README](generator/README.md)
+
+## Development
+
+To set up the development environment:
+
+```bash
+git clone https://github.com/samutoljamo/g-fold.git
 cd g-fold
-
 ```
 
-install requirements
-
-```
-pip3 install cvxpy cvxpygen matplotlib
-```
-
-## Usage
-
-run `python3 main.py -n 100` to solve the example problem and draw graphs using python/CVXPY\
-n specifies the number of simulation steps so higher values create more accurate solutions but require more computing power
-
-c/c++ code can be generated using the `-g` flag
-eg. `python3 main.py -g -n 100`
+Then follow the instructions in the specific package directory you want to work with.
