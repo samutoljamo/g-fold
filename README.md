@@ -22,12 +22,7 @@ Choose the implementation that best fits your needs:
 - For Python usage or code generation, see [Generator README](generator/README.md)
 
 ## Platform Support
-
-The code generation functionality is currently supported on:
-- Linux
-- macOS
-
-Windows support for code generation is not available at this time. However, the core G-FOLD algorithm implementation works on all platforms.
+By default, all tools work on Windows, macOS and Linux. However, c++ code generation feature will not support windows, the bindings that use the generated code will run on windows too.
 
 ## Development
 

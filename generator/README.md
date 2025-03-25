@@ -44,7 +44,7 @@ After installation, you can run G-FOLD from the command line:
 # Solve the example problem with 100 steps and display graphs
 gfold -n 100
 
-# Generate C++ code
+# Generate C++ code NOTE: not supported on windows
 gfold -g -n 100 -o output_directory
 
 # Save the plot to a file without displaying it
