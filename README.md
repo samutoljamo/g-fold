@@ -6,7 +6,7 @@ This project implements the G-FOLD algorithm for spacecraft landing trajectory o
 
 G-FOLD is a convex-optimization algorithm that generates the fuel-optimal path to land a spacecraft at the desired location.
 
-![graph](generator/example.png)
+![graph](examples/gfold_plot.png)
 
 ## Project Structure
 

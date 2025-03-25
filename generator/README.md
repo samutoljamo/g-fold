@@ -13,8 +13,8 @@ You need to install [Rust](https://www.rust-lang.org/tools/install) and [Eigen](
 Clone the repository:
 
 ```bash
-git clone --recurse-submodules https://github.com/samutoljamo/g-fold.git
-cd g-fold
+git clone https://github.com/samutoljamo/g-fold.git
+cd g-fold/generator
 ```
 
 Install the package in development mode:
