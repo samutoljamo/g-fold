@@ -28,7 +28,7 @@ On WSL, make sure you've installed Tkinter (version depends on the python versio
 sudo apt-get install python3.12-tk
 ```
 
-### Option 2: Install from PyPI (coming soon)
+### Option 2: Install from PyPI
 
 ```bash
 pip install gfold
