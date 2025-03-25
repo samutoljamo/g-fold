@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=42", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "gfold"
+version = "0.1.0"
+authors = [
+    {name = "Samu Toljamo", email = "samu.toljamo@gmail.com"},
+]
+description = "G-FOLD: Fuel Optimal Large Divert Guidance Algorithm"
+readme = "README.md"
+requires-python = ">=3.7"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "cvxpy",
+    "cvxpygen",
+    "matplotlib",
+    "numpy",
+    "jinja2"
+]
+
+[project.urls]
+"Homepage" = "https://github.com/samutoljamo/g-fold"
+"Bug Tracker" = "https://github.com/samutoljamo/g-fold/issues"
+
+[project.scripts]
+gfold = "gfold.cli:main"
