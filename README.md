@@ -21,6 +21,14 @@ Choose the implementation that best fits your needs:
 
 - For Python usage or code generation, see [Generator README](generator/README.md)
 
+## Platform Support
+
+The code generation functionality is currently supported on:
+- Linux
+- macOS
+
+Windows support for code generation is not available at this time. However, the core G-FOLD algorithm implementation works on all platforms.
+
 ## Development
 
 To set up the development environment:
