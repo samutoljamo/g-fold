@@ -22,7 +22,7 @@ Choose the implementation that best fits your needs:
 - For Python usage or code generation, see [Generator README](generator/README.md)
 
 ## Platform Support
-By default, all tools work on Windows, macOS and Linux. However, c++ code generation feature will not support windows, the bindings that use the generated code will run on windows too.
+By default, all tools work on Windows, macOS and Linux. However, c++ code generation feature will not support windows, but the bindings that use the generated code will run on windows too.
 
 ## Development
 
