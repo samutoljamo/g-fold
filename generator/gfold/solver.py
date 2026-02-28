@@ -28,6 +28,16 @@ class GFoldSolver:
         """Helper function to create parameters from expressions with values"""
         return cp.Parameter(*args, value=expression.value, **kwargs)
 
+    @staticmethod
+    def _skew_symmetric(vector):
+        """Create skew-symmetric matrix for cross-product operator."""
+        wx, wy, wz = vector
+        return np.array([
+            [0.0, -wz, wy],
+            [wz, 0.0, -wx],
+            [-wy, wx, 0.0],
+        ])
+
     def _setup_problem(self):
         """Set up the G-FOLD optimization problem."""
         config = self.config
@@ -92,6 +102,9 @@ class GFoldSolver:
         g = cp.Parameter(3, name="gravity", value=config.environment.gravity)
         g_dt = self._calculate_parameter(g*dt, 3, name="gravity_dt")
         g_dt_sq = self._calculate_parameter(g*dt*dt, 3, name="gravity_dt_squared")
+        omega = cp.Parameter(3, name="omega", value=config.environment.omega)
+        omega_skew = cp.Parameter((3, 3), name="omega_skew", value=self._skew_symmetric(np.array(config.environment.omega, dtype=float)))
+        omega_skew_sq = cp.Parameter((3, 3), name="omega_skew_squared", value=omega_skew.value @ omega_skew.value)
         
         # Store parameters
         self.parameters = {
@@ -116,6 +129,9 @@ class GFoldSolver:
             "gravity": g,
             "gravity_dt": g_dt,
             "gravity_dt_squared": g_dt_sq,
+            "omega": omega,
+            "omega_skew": omega_skew,
+            "omega_skew_squared": omega_skew_sq,
         }
         
         # Constraints
@@ -134,9 +150,14 @@ class GFoldSolver:
             constraints.append(s[i] * max_exp[i] <= (1 - (z[i]-z0[i])))  # upper bound for s 
             if i != n - 1:
                 acc = (u[i+1, :] + u[i, :])/2
+                coriolis_i = -2 * (omega_skew @ x[i, 3:])
+                coriolis_next = -2 * (omega_skew @ x[i+1, 3:])
+                centrifugal_i = -(omega_skew_sq @ x[i, :3])
+                centrifugal_next = -(omega_skew_sq @ x[i+1, :3])
+                rotational_acc = (coriolis_i + coriolis_next + centrifugal_i + centrifugal_next) / 2
                 constraints += [
-                    x[i+1, :3] == x[i, :3] + (x[i, 3:] + x[i+1, 3:]) * dt / 2 + (acc*dt_squared+g_dt_sq) * (1/2),  # position update
-                    x[i+1, 3:] == x[i, 3:] + acc*dt + g_dt,  # velocity update
+                    x[i+1, :3] == x[i, :3] + (x[i, 3:] + x[i+1, 3:]) * dt / 2 + ((acc + g + rotational_acc) * dt_squared) * (1/2),  # position update
+                    x[i+1, 3:] == x[i, 3:] + (acc + g + rotational_acc) * dt,  # velocity update
                     z[i+1] == z[i] - (s[i] + s[i+1]) / 2 * a_dt  # mass update
                 ]
 
@@ -228,6 +249,10 @@ class GFoldSolver:
             raise ValueError(f"Parameter {param_name} not found")
             
         self.parameters[param_name].value = new_value
+        if param_name == "omega":
+            skew = self._skew_symmetric(np.array(new_value, dtype=float))
+            self.parameters["omega_skew"].value = skew
+            self.parameters["omega_skew_squared"].value = skew @ skew
     
     def update_config(self, **kwargs):
         """
