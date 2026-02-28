@@ -78,6 +78,7 @@ class EnvironmentConfig:
         """
         # Gravitational parameters
         self.gravity = [0, 0, -3.71]  # gravity vector (m/s²), default is Mars
+        self.omega = [0, 0, 7.088e-5]  # planet angular velocity vector (rad/s), default is Mars
         
         # Landing constraints
         self.glide_slope_angle = 0  # in degrees
@@ -111,12 +112,12 @@ class EnvironmentConfig:
     @classmethod
     def moon(cls):
         """Create Moon environment configuration."""
-        return cls(gravity=[0, 0, -1.62])
+        return cls(gravity=[0, 0, -1.62], omega=[0, 0, 2.6617e-6])
     
     @classmethod
     def earth(cls):
         """Create Earth environment configuration."""
-        return cls(gravity=[0, 0, -9.81])
+        return cls(gravity=[0, 0, -9.81], omega=[0, 0, 7.2921159e-5])
     
     def to_dict(self):
         """Convert configuration to dictionary."""
