@@ -13,6 +13,28 @@ impl Layout {
     pub fn z(&self, i: usize) -> usize { 10 * self.n + i }
 }
 
+#[derive(Debug, Clone)]
+pub struct Row {
+    pub coeffs: Vec<(usize, f64)>,
+    pub b: f64,
+}
+
+pub fn eval_row(row: &Row, point: &[f64]) -> f64 {
+    row.coeffs.iter().map(|&(idx, c)| c * point[idx]).sum()
+}
+
+#[derive(Debug)]
+pub struct Builder {
+    pub layout: Layout,
+    pub rows: Vec<Row>,
+}
+
+impl Builder {
+    pub fn new(layout: Layout) -> Self { Self { layout, rows: Vec::new() } }
+    pub fn push(&mut self, row: Row) { self.rows.push(row); }
+    pub fn nrows(&self) -> usize { self.rows.len() }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -30,5 +52,15 @@ mod tests {
         assert_eq!(l.s(99), 999);
         assert_eq!(l.z(0), 1000);
         assert_eq!(l.z(99), 1099);
+    }
+
+    #[test]
+    fn eval_row_dots_point() {
+        let l = Layout { n: 2 };
+        let row = Row { coeffs: vec![(l.x(0,0), 2.0), (l.z(1), -1.0)], b: 3.0 };
+        let mut point = vec![0.0; l.nvars()];
+        point[l.x(0,0)] = 5.0;
+        point[l.z(1)] = 4.0;
+        assert_eq!(eval_row(&row, &point), 2.0 * 5.0 + (-1.0) * 4.0);
     }
 }
