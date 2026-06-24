@@ -2,6 +2,88 @@
 
 use crate::config::Config;
 use crate::derive::Derived;
+use clarabel::algebra::CscMatrix;
+use clarabel::solver::SupportedConeT::{self, NonnegativeConeT, SecondOrderConeT, ZeroConeT};
+
+pub struct Problem {
+    pub p_mat: CscMatrix<f64>,
+    pub q: Vec<f64>,
+    pub a_mat: CscMatrix<f64>,
+    pub b: Vec<f64>,
+    pub cones: Vec<SupportedConeT<f64>>,
+    pub layout: Layout,
+}
+
+fn rows_to_csc(rows: &[Row], nrows: usize, ncols: usize) -> CscMatrix<f64> {
+    // collect per-column entries: (row_index, value)
+    let mut cols: Vec<Vec<(usize, f64)>> = vec![Vec::new(); ncols];
+    for (r, row) in rows.iter().enumerate() {
+        for &(c, v) in &row.coeffs {
+            cols[c].push((r, v));
+        }
+    }
+    let mut colptr = Vec::with_capacity(ncols + 1);
+    let mut rowval = Vec::new();
+    let mut nzval = Vec::new();
+    colptr.push(0usize);
+    for col in cols.iter_mut() {
+        col.sort_by_key(|&(r, _)| r);
+        for &(r, v) in col.iter() {
+            rowval.push(r);
+            nzval.push(v);
+        }
+        colptr.push(rowval.len());
+    }
+    CscMatrix::new(nrows, ncols, colptr, rowval, nzval)
+}
+
+pub fn assemble(cfg: &Config) -> Problem {
+    let n = cfg.solver.n;
+    let layout = Layout { n };
+    let nvars = layout.nvars();
+    let der = crate::derive::derive(cfg);
+
+    // objective
+    let mut q = vec![0.0; nvars];
+    q[layout.z(n - 1)] = -1.0;
+    let p_mat = CscMatrix::zeros((nvars, nvars));
+
+    // gather blocks
+    let eq = equality_rows(cfg, &der);
+    let (gs_soc, gs_nn) = glide_slope(cfg);
+    let nn = nonneg_bounds(cfg, &der);
+    let vel = velocity_soc(cfg);
+    let tslack = thrust_slack_soc(cfg);
+    let tlow = thrust_lower_soc(cfg, &der);
+
+    let mut rows: Vec<Row> = Vec::new();
+    let mut cones: Vec<SupportedConeT<f64>> = Vec::new();
+
+    // 1. equalities
+    cones.push(ZeroConeT(eq.len()));
+    rows.extend(eq);
+
+    // 2. nonnegatives (glide-slope-zero rows then thrust-upper+dry-mass)
+    let nn_count = gs_nn.len() + nn.len();
+    cones.push(NonnegativeConeT(nn_count));
+    rows.extend(gs_nn);
+    rows.extend(nn);
+
+    // 3. SOC blocks
+    for blk in vel.into_iter().chain(tslack).chain(gs_soc).chain(tlow) {
+        cones.push(SecondOrderConeT(blk.dim));
+        rows.extend(blk.rows);
+    }
+
+    let nrows = rows.len();
+    let mut b = Vec::with_capacity(nrows);
+    for row in &rows {
+        b.push(row.b);
+    }
+    let a_mat = rows_to_csc(&rows, nrows, nvars);
+
+    Problem { p_mat, q, a_mat, b, cones, layout }
+}
 
 #[derive(Debug, Clone, Copy)]
 pub struct Layout {
@@ -336,6 +418,18 @@ mod tests {
         let der = crate::derive::derive(&cfg);
         let rows = nonneg_bounds(&cfg, &der);
         assert_eq!(rows.len(), cfg.solver.n + 1);
+    }
+
+    #[test]
+    fn assemble_shapes_and_q() {
+        let cfg = Config::default();
+        let prob = assemble(&cfg);
+        let n = cfg.solver.n;
+        assert_eq!(prob.q.len(), 11 * n);
+        assert_relative_eq!(prob.q[prob.layout.z(n-1)], -1.0, epsilon=1e-12);
+        // A is (nrows x 11n)
+        assert_eq!(prob.a_mat.n, 11 * n);
+        assert_eq!(prob.b.len(), prob.a_mat.m);
     }
 
     #[test]
