@@ -92,11 +92,12 @@ The quadratic thrust lower bound is the only analytically subtle block and the h
 
 `Trajectory` (typed): `positions` (n×3), `velocities` (n×3), `thrusts` (n, mass-adjusted as in `solver.py` lines 179–183), `z_values`, `objective`, `time_points`, plus raw `x/u/s` for validation.
 
-## Correctness Strategy (three independent legs)
+## Correctness Strategy
 
-1. **Matrix-level cross-check vs CVXPYGen.** For a given config, diff the assembled `(P, q, A, b, cones)` against what CVXPYGen emits for the identical CVXPY problem (modulo row/column permutation). Catches assembly bugs structurally, before any solve. Primary defense for the hand assembler, especially the quadratic thrust block.
-2. **Committed solution fixtures vs CVXPY oracle.** End-to-end: same config → Rust solution agrees with the Python/CVXPY solution within tolerance.
-3. **Independent physics/optimality checks (`validate.rs`).** Verify the returned trajectory satisfies the actual G-FOLD constraints (dynamics residuals, glide slope, thrust bounds, velocity bound, boundary conditions) and basic optimality, independent of any reference implementation.
+> **Update (implementation):** The originally planned leg 1 — a direct matrix-level diff of the assembled `(P, q, A, b, cones)` against CVXPY's canonical form — proved **not viable** and was dropped. CVXPY canonicalizes the problem into a *lifted* form with auxiliary epigraph variables (1500 vars / 400 SOC blocks vs the Rust direct form's 1100 vars / 300 SOC blocks), and it represents the angle-0 glide-slope constraint as a parametric SOC where the Rust assembler emits a nonnegative row. The two formulations are equivalent at the solution but are not the same matrices, so a residual/permutation comparison cannot match. Notably, the Zero cone (706/706 rows) and Nonnegative cone (501/501 rows) *do* match exactly, confirming the equalities and linear bounds are identical. Leg 1's intent — an independent structural check — is folded into the oracle leg (leg 2), which compares full solutions against CVXPY. The remaining two legs below are what the implementation relies on.
+
+1. **Committed solution fixtures vs CVXPY oracle.** End-to-end: same config → Rust solution agrees with the Python/CVXPY solution within tolerance. (The default-config final mass matches CVXPY to the kilogram: 1801.05 kg.)
+2. **Independent physics/optimality checks (`validate.rs`).** Verify the returned trajectory satisfies the actual G-FOLD constraints (dynamics residuals, glide slope, thrust bounds, velocity bound, boundary conditions) and basic optimality, independent of any reference implementation.
 
 ### Fixtures
 
@@ -109,9 +110,8 @@ The quadratic thrust lower bound is the only analytically subtle block and the h
 ## Testing tiers
 
 1. **Unit** — index mapping; each constraint block assembled in isolation.
-2. **Matrix-diff** — assembled matrices vs CVXPYGen on at least one config (leg 1).
-3. **Fixture/oracle** — end-to-end solution comparison (leg 2).
-4. **Physics validation** — `validate.rs` run on every solved trajectory (leg 3).
+2. **Fixture/oracle** — end-to-end solution comparison vs CVXPY (leg 1).
+3. **Physics validation** — `validate.rs` run on every solved trajectory (leg 2).
 
 ## Benchmarks
 

@@ -26,9 +26,6 @@ def main():
     parser.add_argument('--dump-fixtures',
                         metavar='DIR',
                         help="Dump solver oracle fixtures as JSON to DIR and exit")
-    parser.add_argument('--export-matrices',
-                        metavar='PATH',
-                        help="Export CVXPY canonical problem matrices to PATH (JSON) and exit")
 
     args = parser.parse_args()
 
@@ -36,12 +33,6 @@ def main():
     if args.dump_fixtures:
         from .fixtures import dump_fixtures
         dump_fixtures(args.dump_fixtures)
-        return
-
-    # Export matrices if requested
-    if args.export_matrices:
-        from .export_matrices import export
-        export(args.export_matrices)
         return
 
     # Initialize solver
