@@ -168,6 +168,23 @@ pub fn equality_rows(cfg: &Config, _der: &Derived) -> Vec<Row> {
     rows
 }
 
+pub fn thrust_lower_soc(cfg: &Config, der: &Derived) -> Vec<SocBlock> {
+    let n = cfg.solver.n;
+    let l = Layout { n };
+    let mut out = Vec::with_capacity(n);
+    for i in 0..n {
+        let m = der.min_exp[i];
+        let z0 = der.z0[i];
+        let rows = vec![
+            Row { coeffs: vec![(l.s(i), -m), (l.z(i), -1.0)], b: -z0 },        // t
+            Row { coeffs: vec![(l.z(i), -2.0)], b: -2.0 * z0 },                // v0 = 2w
+            Row { coeffs: vec![(l.s(i), -m), (l.z(i), -1.0)], b: -z0 - 2.0 },  // v1
+        ];
+        out.push(SocBlock { rows, dim: 3 });
+    }
+    out
+}
+
 pub fn nonneg_bounds(cfg: &Config, der: &Derived) -> Vec<Row> {
     let n = cfg.solver.n;
     let l = Layout { n };
@@ -319,5 +336,32 @@ mod tests {
         let der = crate::derive::derive(&cfg);
         let rows = nonneg_bounds(&cfg, &der);
         assert_eq!(rows.len(), cfg.solver.n + 1);
+    }
+
+    #[test]
+    fn thrust_lower_cone_membership_feasible() {
+        let cfg = Config::default();
+        let der = crate::derive::derive(&cfg);
+        let l = Layout { n: cfg.solver.n };
+        let m = der.min_exp[0];
+        let z0 = der.z0[0];
+        let blocks = thrust_lower_soc(&cfg, &der);
+        assert_eq!(blocks[0].dim, 3);
+
+        // choose w = 0 (z = z0). Then constraint: 1 - 0 + 0 <= s*m  => s*m >= 1.
+        // pick s*m = 4 (well above 1) -> feasible, expect t >= ||v||.
+        let s_val = 4.0 / m;
+        let mut p = vec![0.0; l.nvars()];
+        p[l.z(0)] = z0;
+        p[l.s(0)] = s_val;
+        let sv: Vec<f64> = blocks[0].rows.iter().map(|r| r.b - eval_row(r, &p)).collect();
+        let t = sv[0];
+        let norm = (sv[1]*sv[1] + sv[2]*sv[2]).sqrt();
+        assert!(t >= norm - 1e-9, "t={t} norm={norm}");
+        // boundary check: at s*m = 1 (w=0), constraint is tight -> t == norm
+        p[l.s(0)] = 1.0 / m;
+        let sv2: Vec<f64> = blocks[0].rows.iter().map(|r| r.b - eval_row(r, &p)).collect();
+        let norm2 = (sv2[1]*sv2[1] + sv2[2]*sv2[2]).sqrt();
+        assert_relative_eq!(sv2[0], norm2, epsilon=1e-9);
     }
 }
