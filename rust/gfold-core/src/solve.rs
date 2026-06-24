@@ -20,8 +20,10 @@ pub struct Trajectory {
 
 pub fn solve(cfg: &Config) -> Result<Trajectory, String> {
     let prob = assemble(cfg);
-    let mut settings = DefaultSettings::default();
-    settings.verbose = false;
+    let settings = DefaultSettings {
+        verbose: false,
+        ..DefaultSettings::default()
+    };
     // In Clarabel 0.11, DefaultSolver::new returns Result<Self, SolverError>
     let mut solver = DefaultSolver::new(
         &prob.p_mat, &prob.q, &prob.a_mat, &prob.b, &prob.cones, settings,

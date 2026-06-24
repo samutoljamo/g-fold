@@ -327,7 +327,7 @@ mod tests {
         let mut point = vec![0.0; l.nvars()];
         point[l.x(0,0)] = 5.0;
         point[l.z(1)] = 4.0;
-        assert_eq!(eval_row(&row, &point), 2.0 * 5.0 + (-1.0) * 4.0);
+        assert_eq!(eval_row(&row, &point), 2.0 * 5.0 - 4.0);
     }
 
     #[test]
