@@ -1,5 +1,6 @@
 //! Independent physics/optimality checks.
 use crate::config::Config;
+use crate::derive::derive;
 use crate::solve::Trajectory;
 
 #[derive(Debug, Clone)]
@@ -13,6 +14,7 @@ fn norm3(v: &[f64; 3]) -> f64 { (v[0]*v[0] + v[1]*v[1] + v[2]*v[2]).sqrt() }
 
 pub fn validate(cfg: &Config, traj: &Trajectory, tol: f64) -> Vec<Violation> {
     let n = cfg.solver.n;
+    let derived = derive(cfg);
     let dt = cfg.dt();
     let dt2 = dt * dt;
     let g = cfg.environment.gravity;
@@ -59,6 +61,21 @@ pub fn validate(cfg: &Config, traj: &Trajectory, tol: f64) -> Vec<Violation> {
     }
     let dry = traj.z_values[n-1] - cfg.log_dry_mass();
     if dry < -tol { v.push(Violation { name: "dry_mass".into(), index: n-1, residual: -dry }); }
+
+    // thrust bounds
+    for i in 0..n {
+        let z = traj.z_values[i];
+        let s = traj.s_values[i];
+        let w = z - derived.z0[i];
+        // upper: s*max_exp[i] <= 1 - w
+        let upper_res = s * derived.max_exp[i] - (1.0 - w);
+        if upper_res > tol { v.push(Violation { name: "max_thrust".into(), index: i, residual: upper_res }); }
+        // lower: 1 - w + w^2/2 <= s*min_exp[i]  (skip if min_exp is +inf, i.e. min_thrust==0)
+        if derived.min_exp[i].is_finite() {
+            let lower_res = (1.0 - w + w * w / 2.0) - s * derived.min_exp[i];
+            if lower_res > tol { v.push(Violation { name: "min_thrust".into(), index: i, residual: lower_res }); }
+        }
+    }
 
     v
 }

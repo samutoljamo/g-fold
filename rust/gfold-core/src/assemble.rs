@@ -114,18 +114,6 @@ pub fn eval_row(row: &Row, point: &[f64]) -> f64 {
     row.coeffs.iter().map(|&(idx, c)| c * point[idx]).sum()
 }
 
-#[derive(Debug)]
-pub struct Builder {
-    pub layout: Layout,
-    pub rows: Vec<Row>,
-}
-
-impl Builder {
-    pub fn new(layout: Layout) -> Self { Self { layout, rows: Vec::new() } }
-    pub fn push(&mut self, row: Row) { self.rows.push(row); }
-    pub fn nrows(&self) -> usize { self.rows.len() }
-}
-
 pub fn velocity_soc(cfg: &Config) -> Vec<SocBlock> {
     let n = cfg.solver.n;
     let l = Layout { n };
