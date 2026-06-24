@@ -258,9 +258,9 @@ pub fn thrust_lower_soc(cfg: &Config, der: &Derived) -> Vec<SocBlock> {
         let m = der.min_exp[i];
         let z0 = der.z0[i];
         let rows = vec![
-            Row { coeffs: vec![(l.s(i), -m), (l.z(i), -1.0)], b: -z0 },        // t
-            Row { coeffs: vec![(l.z(i), -2.0)], b: -2.0 * z0 },                // v0 = 2w
-            Row { coeffs: vec![(l.s(i), -m), (l.z(i), -1.0)], b: -z0 - 2.0 },  // v1
+            Row { coeffs: vec![(l.s(i), -2.0*m), (l.z(i), -2.0)], b: -2.0*z0 - 1.0 },  // t = 2y+1
+            Row { coeffs: vec![(l.z(i), -2.0)], b: -2.0 * z0 },                          // v0 = 2w
+            Row { coeffs: vec![(l.s(i), -2.0*m), (l.z(i), -2.0)], b: -2.0*z0 - 3.0 },  // v1 = 2y-1
         ];
         out.push(SocBlock { rows, dim: 3 });
     }
@@ -457,5 +457,25 @@ mod tests {
         let sv2: Vec<f64> = blocks[0].rows.iter().map(|r| r.b - eval_row(r, &p)).collect();
         let norm2 = (sv2[1]*sv2[1] + sv2[2]*sv2[2]).sqrt();
         assert_relative_eq!(sv2[0], norm2, epsilon=1e-9);
+
+        // w=1 tight boundary: z[0]=z0+1, s*m=0.5 -> t=2, v0=2, v1=0 -> t==norm
+        // algebra: t=2*0.5+2*1-1=2; v0=2*1=2; v1=2*0.5+2*1-3=0; norm=2 ✓
+        let mut p3 = vec![0.0; l.nvars()];
+        p3[l.z(0)] = z0 + 1.0;
+        p3[l.s(0)] = 0.5 / m;
+        let sv3: Vec<f64> = blocks[0].rows.iter().map(|r| r.b - eval_row(r, &p3)).collect();
+        let norm3 = (sv3[1]*sv3[1] + sv3[2]*sv3[2]).sqrt();
+        assert_relative_eq!(sv3[0], 2.0, epsilon=1e-9);
+        assert_relative_eq!(sv3[1], 2.0, epsilon=1e-9);
+        assert_relative_eq!(sv3[2], 0.0, epsilon=1e-9);
+        assert_relative_eq!(sv3[0], norm3, epsilon=1e-9);
+
+        // w=1 strictly interior: z[0]=z0+1, s*m=2.0 -> t > norm
+        let mut p4 = vec![0.0; l.nvars()];
+        p4[l.z(0)] = z0 + 1.0;
+        p4[l.s(0)] = 2.0 / m;
+        let sv4: Vec<f64> = blocks[0].rows.iter().map(|r| r.b - eval_row(r, &p4)).collect();
+        let norm4 = (sv4[1]*sv4[1] + sv4[2]*sv4[2]).sqrt();
+        assert!(sv4[0] > norm4, "w=1 interior: t={} norm={}", sv4[0], norm4);
     }
 }
