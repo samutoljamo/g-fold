@@ -168,6 +168,20 @@ pub fn equality_rows(cfg: &Config, _der: &Derived) -> Vec<Row> {
     rows
 }
 
+pub fn nonneg_bounds(cfg: &Config, der: &Derived) -> Vec<Row> {
+    let n = cfg.solver.n;
+    let l = Layout { n };
+    let mut rows = Vec::with_capacity(n + 1);
+    for i in 0..n {
+        rows.push(Row {
+            coeffs: vec![(l.z(i), 1.0), (l.s(i), der.max_exp[i])],
+            b: 1.0 + der.z0[i],
+        });
+    }
+    rows.push(Row { coeffs: vec![(l.z(n - 1), -1.0)], b: -cfg.log_dry_mass() });
+    rows
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -283,5 +297,27 @@ mod tests {
         assert!(nn.is_empty());
         assert_eq!(soc.len(), cfg.solver.n);
         assert_eq!(soc[0].dim, 4);
+    }
+
+    #[test]
+    fn thrust_upper_bound_residual() {
+        let cfg = Config::default();
+        let der = crate::derive::derive(&cfg);
+        let l = Layout { n: cfg.solver.n };
+        let rows = nonneg_bounds(&cfg, &der);
+        // first n rows are thrust-upper; row i=0
+        let mut p = vec![0.0; l.nvars()];
+        p[l.z(0)] = der.z0[0];  // z = z0 -> bracket = 1
+        p[l.s(0)] = 0.0;
+        // s_row = 1 + z0 - z - s*max_exp = 1 + z0[0] - z0[0] - 0 = 1
+        assert_relative_eq!(rows[0].b - eval_row(&rows[0], &p), 1.0, epsilon=1e-9);
+    }
+
+    #[test]
+    fn nonneg_row_count() {
+        let cfg = Config::default();
+        let der = crate::derive::derive(&cfg);
+        let rows = nonneg_bounds(&cfg, &der);
+        assert_eq!(rows.len(), cfg.solver.n + 1);
     }
 }
