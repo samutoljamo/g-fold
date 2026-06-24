@@ -74,6 +74,30 @@ pub fn thrust_slack_soc(cfg: &Config) -> Vec<SocBlock> {
     out
 }
 
+pub fn glide_slope(cfg: &Config) -> (Vec<SocBlock>, Vec<Row>) {
+    let n = cfg.solver.n;
+    let l = Layout { n };
+    let sin = cfg.sin_glide_slope();
+    if sin == 0.0 {
+        let mut nn = Vec::with_capacity(n);
+        for i in 0..n {
+            nn.push(Row { coeffs: vec![(l.x(i, 2), -1.0)], b: 0.0 }); // x[i,2] >= 0
+        }
+        (Vec::new(), nn)
+    } else {
+        let mut soc = Vec::with_capacity(n);
+        for i in 0..n {
+            let mut rows = Vec::with_capacity(4);
+            rows.push(Row { coeffs: vec![(l.x(i, 2), -1.0)], b: 0.0 }); // t = x[i,2]
+            for c in 0..3 {
+                rows.push(Row { coeffs: vec![(l.x(i, c), -sin)], b: 0.0 }); // v_c = sin * x[i,c]
+            }
+            soc.push(SocBlock { rows, dim: 4 });
+        }
+        (soc, Vec::new())
+    }
+}
+
 pub fn equality_rows(cfg: &Config, _der: &Derived) -> Vec<Row> {
     let n = cfg.solver.n;
     let l = Layout { n };
@@ -237,5 +261,27 @@ mod tests {
         let rows = equality_rows(&cfg, &der);
         // 3+3+1 boundary-initial + (n-1)*(3+3+1) dynamics + 3+3 final
         assert_eq!(rows.len(), 7 + (n-1)*7 + 6);
+    }
+
+    #[test]
+    fn glide_slope_zero_angle_uses_nonneg() {
+        let cfg = Config::default(); // angle 0
+        let (soc, nn) = glide_slope(&cfg);
+        assert!(soc.is_empty());
+        assert_eq!(nn.len(), cfg.solver.n);
+        let l = Layout { n: cfg.solver.n };
+        let mut p = vec![0.0; l.nvars()];
+        p[l.x(0,2)] = 7.0;
+        assert_relative_eq!(nn[0].b - eval_row(&nn[0], &p), 7.0, epsilon=1e-12);
+    }
+
+    #[test]
+    fn glide_slope_nonzero_angle_uses_soc() {
+        let mut cfg = Config::default();
+        cfg.environment.glide_slope_angle_deg = 30.0;
+        let (soc, nn) = glide_slope(&cfg);
+        assert!(nn.is_empty());
+        assert_eq!(soc.len(), cfg.solver.n);
+        assert_eq!(soc[0].dim, 4);
     }
 }
