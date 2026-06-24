@@ -47,3 +47,5 @@ fn fixture_default() { check("../gfold-fixtures/data/default.json"); }
 fn fixture_moon() { check("../gfold-fixtures/data/moon.json"); }
 #[test]
 fn fixture_small_n() { check("../gfold-fixtures/data/small_n.json"); }
+#[test]
+fn fixture_glide() { check("../gfold-fixtures/data/glide.json"); }

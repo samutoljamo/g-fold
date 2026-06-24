@@ -1,7 +1,6 @@
 """Generate solver fixtures (oracle) for the Rust core tests."""
 import json
 import os
-import numpy as np
 from .config import GFoldConfig, EnvironmentConfig, SolverConfig
 from .solver import GFoldSolver
 
@@ -61,6 +60,7 @@ def dump_fixtures(out_dir: str) -> None:
         "moon": GFoldConfig(environment=EnvironmentConfig.moon()),
         "earth": GFoldConfig(environment=EnvironmentConfig.earth()),
         "small_n": GFoldConfig(solver=SolverConfig(n=20, time_of_flight=44.63)),
+        "glide": GFoldConfig(environment=EnvironmentConfig(glide_slope_angle=10)),
     }
     for name, cfg in cases.items():
         _dump_one(name, cfg, out_dir)
