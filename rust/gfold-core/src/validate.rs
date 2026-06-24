@@ -1,6 +1,5 @@
 //! Independent physics/optimality checks.
 use crate::config::Config;
-use crate::derive::derive;
 use crate::solve::Trajectory;
 
 #[derive(Debug, Clone)]
@@ -61,7 +60,6 @@ pub fn validate(cfg: &Config, traj: &Trajectory, tol: f64) -> Vec<Violation> {
     let dry = traj.z_values[n-1] - cfg.log_dry_mass();
     if dry < -tol { v.push(Violation { name: "dry_mass".into(), index: n-1, residual: -dry }); }
 
-    let _ = derive(cfg); // reserved for future thrust-bound checks vs z0 arrays
     v
 }
 
