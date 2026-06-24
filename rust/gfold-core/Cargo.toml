@@ -10,3 +10,8 @@ serde_json = "1"
 
 [dev-dependencies]
 approx = "0.5"
+criterion = "0.5"
+
+[[bench]]
+name = "solve"
+harness = false
