@@ -22,6 +22,12 @@ pub struct Row {
     pub b: f64,
 }
 
+#[derive(Debug, Clone)]
+pub struct SocBlock {
+    pub rows: Vec<Row>,
+    pub dim: usize,
+}
+
 pub fn eval_row(row: &Row, point: &[f64]) -> f64 {
     row.coeffs.iter().map(|&(idx, c)| c * point[idx]).sum()
 }
@@ -36,6 +42,36 @@ impl Builder {
     pub fn new(layout: Layout) -> Self { Self { layout, rows: Vec::new() } }
     pub fn push(&mut self, row: Row) { self.rows.push(row); }
     pub fn nrows(&self) -> usize { self.rows.len() }
+}
+
+pub fn velocity_soc(cfg: &Config) -> Vec<SocBlock> {
+    let n = cfg.solver.n;
+    let l = Layout { n };
+    let mut out = Vec::with_capacity(n);
+    for i in 0..n {
+        let mut rows = Vec::with_capacity(4);
+        rows.push(Row { coeffs: vec![], b: cfg.spacecraft.max_velocity }); // t = max_vel
+        for c in 0..3 {
+            rows.push(Row { coeffs: vec![(l.x(i, c + 3), -1.0)], b: 0.0 }); // v_c = x[i,c+3]
+        }
+        out.push(SocBlock { rows, dim: 4 });
+    }
+    out
+}
+
+pub fn thrust_slack_soc(cfg: &Config) -> Vec<SocBlock> {
+    let n = cfg.solver.n;
+    let l = Layout { n };
+    let mut out = Vec::with_capacity(n);
+    for i in 0..n {
+        let mut rows = Vec::with_capacity(4);
+        rows.push(Row { coeffs: vec![(l.s(i), -1.0)], b: 0.0 }); // t = s[i]
+        for c in 0..3 {
+            rows.push(Row { coeffs: vec![(l.u(i, c), -1.0)], b: 0.0 }); // v_c = u[i,c]
+        }
+        out.push(SocBlock { rows, dim: 4 });
+    }
+    out
 }
 
 pub fn equality_rows(cfg: &Config, _der: &Derived) -> Vec<Row> {
@@ -113,6 +149,36 @@ mod tests {
     use super::*;
     use crate::config::Config;
     use approx::assert_relative_eq;
+
+    fn soc_s(block: &SocBlock, p: &[f64]) -> Vec<f64> {
+        block.rows.iter().map(|r| r.b - eval_row(r, p)).collect()
+    }
+
+    #[test]
+    fn thrust_slack_cone_membership() {
+        let cfg = Config::default();
+        let l = Layout { n: cfg.solver.n };
+        let blocks = thrust_slack_soc(&cfg);
+        let mut p = vec![0.0; l.nvars()];
+        // u[0] = (3,4,0) -> norm 5 ; s[0] = 6 >= 5 feasible
+        p[l.u(0,0)] = 3.0; p[l.u(0,1)] = 4.0; p[l.s(0)] = 6.0;
+        let s = soc_s(&blocks[0], &p);
+        assert_eq!(s.len(), 4);
+        assert_relative_eq!(s[0], 6.0, epsilon=1e-12); // t
+        let norm = (s[1]*s[1]+s[2]*s[2]+s[3]*s[3]).sqrt();
+        assert_relative_eq!(norm, 5.0, epsilon=1e-12);
+        assert!(s[0] >= norm); // in cone
+    }
+
+    #[test]
+    fn velocity_cone_t_is_maxvel() {
+        let cfg = Config::default();
+        let l = Layout { n: cfg.solver.n };
+        let blocks = velocity_soc(&cfg);
+        let p = vec![0.0; l.nvars()];
+        let s = soc_s(&blocks[0], &p);
+        assert_relative_eq!(s[0], cfg.spacecraft.max_velocity, epsilon=1e-12);
+    }
 
     #[test]
     fn layout_offsets() {
