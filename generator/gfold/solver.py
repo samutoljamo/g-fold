@@ -1,7 +1,10 @@
 import cvxpy as cp
 import numpy as np
 import os
-from cvxpygen import cpg
+try:
+    from cvxpygen import cpg
+except ImportError:
+    cpg = None
 from .config import GFoldConfig
 
 class GFoldSolver:
