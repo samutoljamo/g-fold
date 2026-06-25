@@ -1,0 +1,12 @@
+[workspace]
+members = ["gfold-core"]
+resolver = "2"
+
+# The solve is dominated by sparse-LDL linear algebra inside clarabel (QDLDL
+# factor + triangular solves). Fat LTO and a single codegen unit let the
+# optimizer inline across the crate boundary. A gitignored rust/.cargo/config.toml
+# may add target-cpu=native for an extra local gain (host-pinned, so kept out of
+# git). panic=abort is omitted: it breaks `cargo test --release` and benches.
+[profile.release]
+lto = "fat"
+codegen-units = 1

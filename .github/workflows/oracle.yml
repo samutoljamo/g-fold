@@ -1,0 +1,28 @@
+name: Oracle
+on:
+  push:
+  pull_request:
+
+jobs:
+  # The differential cross-check: the CVXPY oracle generates fixtures fresh,
+  # then the Rust solver is tested against them within tolerance gates. Fixtures
+  # are not committed (solver output is not bit-reproducible across machines);
+  # the gates absorb that float noise while still catching formulation drift.
+  differential:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: astral-sh/setup-uv@v5
+      - name: Sync oracle env
+        working-directory: rust/gfold-fixtures
+        run: uv sync --locked
+      - name: Oracle sanity tests
+        working-directory: rust/gfold-fixtures
+        run: uv run pytest -q
+      - name: Generate fixtures from the oracle
+        working-directory: rust/gfold-fixtures
+        run: uv run python -m gfold_oracle.dump
+      - name: Differential test — Rust solver vs fresh oracle fixtures
+        working-directory: rust
+        run: cargo test -p gfold-core --test fixtures

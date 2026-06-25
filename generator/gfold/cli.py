@@ -20,12 +20,21 @@ def main():
     parser.add_argument('--no-plot', 
                         help="Don't display the plot", 
                         action="store_true")
-    parser.add_argument('-s', '--save-plot', 
-                        help="Save the plot to a file (default: don't save)", 
+    parser.add_argument('-s', '--save-plot',
+                        help="Save the plot to a file (default: don't save)",
                         action="store_true")
-    
+    parser.add_argument('--dump-fixtures',
+                        metavar='DIR',
+                        help="Dump solver oracle fixtures as JSON to DIR and exit")
+
     args = parser.parse_args()
-    
+
+    # Dump fixtures if requested
+    if args.dump_fixtures:
+        from .fixtures import dump_fixtures
+        dump_fixtures(args.dump_fixtures)
+        return
+
     # Initialize solver
     solver = GFoldSolver(GFoldConfig(n=args.n))
     

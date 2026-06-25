@@ -1,0 +1,7 @@
+.venv/
+__pycache__/
+*.pyc
+
+# Fixtures are a generated artifact (cases/ are the committed inputs).
+# Regenerate with: uv run python -m gfold_oracle.dump
+data/

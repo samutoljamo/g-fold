@@ -137,6 +137,10 @@ dmypy.json
 # Cython debug symbols
 cython_debug/
 
+# Local-only cargo config (holds host-pinned target-cpu=native); the portable
+# release settings live in rust/Cargo.toml's [profile.release].
+rust/.cargo/config.toml
+
 [0-9]*/
 
 .vscode/

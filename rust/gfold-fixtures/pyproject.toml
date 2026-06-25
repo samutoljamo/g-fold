@@ -1,0 +1,18 @@
+[project]
+name = "gfold-oracle"
+version = "0.0.0"
+description = "CVXPY differential-test oracle for gfold-core (Rust is the source of truth)"
+requires-python = ">=3.11"
+dependencies = [
+    "cvxpy>=1.9",
+    "numpy>=1.26",
+]
+
+[dependency-groups]
+dev = ["pytest>=8"]
+
+# No [build-system]: this is a non-published dev tool. uv manages the env and
+# runs it via `uv run`; the package is imported from the project root.
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
