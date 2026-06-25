@@ -127,3 +127,20 @@ mod wasm {
     #[wasm_bindgen]
     pub fn validate(input: &str) -> String { super::call_catching(|| super::validate_json(input)) }
 }
+
+#[cfg(feature = "python")]
+pub mod python {
+    use pyo3::prelude::*;
+
+    #[pyfunction]
+    fn solve_json(input: &str) -> String { super::call_catching(|| super::solve_json(input)) }
+    #[pyfunction]
+    fn validate_json(input: &str) -> String { super::call_catching(|| super::validate_json(input)) }
+
+    #[pymodule]
+    pub fn _gfold(m: &Bound<'_, PyModule>) -> PyResult<()> {
+        m.add_function(wrap_pyfunction!(solve_json, m)?)?;
+        m.add_function(wrap_pyfunction!(validate_json, m)?)?;
+        Ok(())
+    }
+}

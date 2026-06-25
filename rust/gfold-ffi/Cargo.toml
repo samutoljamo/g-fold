@@ -11,13 +11,24 @@ gfold-core = { path = "../gfold-core" }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 
-[features]
-schema = ["gfold-core/schema", "dep:schemars"]
-wasm = ["dep:wasm-bindgen"]
+[dependencies.pyo3]
+version = "0.29"
+features = ["extension-module"]
+optional = true
 
 [dependencies.schemars]
 version = "0.8"
 optional = true
+
+[features]
+schema = ["gfold-core/schema", "dep:schemars"]
+wasm = ["dep:wasm-bindgen"]
+python = ["dep:pyo3"]
+
+[[bin]]
+name = "emit_schema"
+path = "src/bin/emit_schema.rs"
+required-features = ["schema"]
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 wasm-bindgen = { version = "0.2", optional = true }
