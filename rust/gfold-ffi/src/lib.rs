@@ -39,6 +39,76 @@ fn envelope<T: serde::Serialize>(r: Result<T, String>) -> String {
     }
 }
 
+/// Run `f`, converting a panic into an `{"err"}` envelope string.
+pub fn call_catching(f: impl FnOnce() -> String + std::panic::UnwindSafe) -> String {
+    std::panic::catch_unwind(f)
+        .unwrap_or_else(|_| r#"{"err":"internal panic"}"#.to_string())
+}
+
+fn to_buf(s: String, out_len: *mut usize) -> *mut u8 {
+    let mut boxed = s.into_bytes().into_boxed_slice();
+    unsafe { *out_len = boxed.len(); }
+    let p = boxed.as_mut_ptr();
+    std::mem::forget(boxed);
+    p
+}
+
+/// # Safety
+/// `ptr`/`len` must describe valid UTF-8; returns `""` on invalid UTF-8.
+unsafe fn read_str<'a>(ptr: *const u8, len: usize) -> &'a str {
+    std::str::from_utf8(std::slice::from_raw_parts(ptr, len)).unwrap_or("")
+}
+
+/// # Safety
+/// `ptr`/`len` must describe valid UTF-8 JSON; free the result with `gfold_free`.
+#[no_mangle]
+pub unsafe extern "C" fn gfold_solve(ptr: *const u8, len: usize, out_len: *mut usize) -> *mut u8 {
+    let input = read_str(ptr, len).to_owned();
+    to_buf(call_catching(move || solve_json(&input)), out_len)
+}
+
+/// # Safety
+/// See `gfold_solve` for safety requirements.
+#[no_mangle]
+pub unsafe extern "C" fn gfold_validate(ptr: *const u8, len: usize, out_len: *mut usize) -> *mut u8 {
+    let input = read_str(ptr, len).to_owned();
+    to_buf(call_catching(move || validate_json(&input)), out_len)
+}
+
+/// # Safety
+/// `ptr`/`len` must come from a `gfold_*` call.
+#[no_mangle]
+pub unsafe extern "C" fn gfold_free(ptr: *mut u8, len: usize) {
+    let slice = std::ptr::slice_from_raw_parts_mut(ptr, len);
+    drop(Box::from_raw(slice));
+}
+
+#[cfg(all(target_arch = "wasm32", feature = "wasm"))]
+mod wasm {
+    use wasm_bindgen::prelude::*;
+    #[wasm_bindgen]
+    pub fn solve(input: &str) -> String { super::call_catching(|| super::solve_json(input)) }
+    #[wasm_bindgen]
+    pub fn validate(input: &str) -> String { super::call_catching(|| super::validate_json(input)) }
+}
+
+#[cfg(feature = "python")]
+pub mod python {
+    use pyo3::prelude::*;
+
+    #[pyfunction]
+    fn solve_json(input: &str) -> String { super::call_catching(|| super::solve_json(input)) }
+    #[pyfunction]
+    fn validate_json(input: &str) -> String { super::call_catching(|| super::validate_json(input)) }
+
+    #[pymodule]
+    pub fn _gfold(m: &Bound<'_, PyModule>) -> PyResult<()> {
+        m.add_function(wrap_pyfunction!(solve_json, m)?)?;
+        m.add_function(wrap_pyfunction!(validate_json, m)?)?;
+        Ok(())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -78,69 +148,5 @@ mod tests {
         let resp = call_catching(|| panic!("boom"));
         let v: serde_json::Value = serde_json::from_str(&resp).unwrap();
         assert!(v["err"].as_str().unwrap().contains("panic"));
-    }
-}
-
-/// Run `f`, converting a panic into an `{"err"}` envelope string.
-pub fn call_catching(f: impl FnOnce() -> String + std::panic::UnwindSafe) -> String {
-    std::panic::catch_unwind(f)
-        .unwrap_or_else(|_| r#"{"err":"internal panic"}"#.to_string())
-}
-
-fn to_buf(s: String, out_len: *mut usize) -> *mut u8 {
-    let mut boxed = s.into_bytes().into_boxed_slice();
-    unsafe { *out_len = boxed.len(); }
-    let p = boxed.as_mut_ptr();
-    std::mem::forget(boxed);
-    p
-}
-
-unsafe fn read_str<'a>(ptr: *const u8, len: usize) -> &'a str {
-    std::str::from_utf8(std::slice::from_raw_parts(ptr, len)).unwrap_or("")
-}
-
-/// # Safety: `ptr`/`len` must describe valid UTF-8 JSON; free the result with `gfold_free`.
-#[no_mangle]
-pub unsafe extern "C" fn gfold_solve(ptr: *const u8, len: usize, out_len: *mut usize) -> *mut u8 {
-    let input = read_str(ptr, len).to_owned();
-    to_buf(call_catching(move || solve_json(&input)), out_len)
-}
-
-/// # Safety: see `gfold_solve`.
-#[no_mangle]
-pub unsafe extern "C" fn gfold_validate(ptr: *const u8, len: usize, out_len: *mut usize) -> *mut u8 {
-    let input = read_str(ptr, len).to_owned();
-    to_buf(call_catching(move || validate_json(&input)), out_len)
-}
-
-/// # Safety: `ptr`/`len` must come from a `gfold_*` call.
-#[no_mangle]
-pub unsafe extern "C" fn gfold_free(ptr: *mut u8, len: usize) {
-    drop(Box::from_raw(std::slice::from_raw_parts_mut(ptr, len)));
-}
-
-#[cfg(all(target_arch = "wasm32", feature = "wasm"))]
-mod wasm {
-    use wasm_bindgen::prelude::*;
-    #[wasm_bindgen]
-    pub fn solve(input: &str) -> String { super::call_catching(|| super::solve_json(input)) }
-    #[wasm_bindgen]
-    pub fn validate(input: &str) -> String { super::call_catching(|| super::validate_json(input)) }
-}
-
-#[cfg(feature = "python")]
-pub mod python {
-    use pyo3::prelude::*;
-
-    #[pyfunction]
-    fn solve_json(input: &str) -> String { super::call_catching(|| super::solve_json(input)) }
-    #[pyfunction]
-    fn validate_json(input: &str) -> String { super::call_catching(|| super::validate_json(input)) }
-
-    #[pymodule]
-    pub fn _gfold(m: &Bound<'_, PyModule>) -> PyResult<()> {
-        m.add_function(wrap_pyfunction!(solve_json, m)?)?;
-        m.add_function(wrap_pyfunction!(validate_json, m)?)?;
-        Ok(())
     }
 }

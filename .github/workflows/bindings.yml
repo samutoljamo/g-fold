@@ -1,0 +1,45 @@
+name: Bindings + CLI
+on:
+  push:
+  pull_request:
+
+jobs:
+  rust:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: rust
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+          components: clippy
+      - run: cargo test -p gfold-ffi -p gfold-cli
+      - run: cargo build -p gfold-ffi --target wasm32-unknown-unknown --features wasm
+      - run: cargo clippy -p gfold-ffi -p gfold-cli --all-targets -- -D warnings
+
+  schema-fresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Regenerate schema
+        working-directory: rust
+        run: cargo run -p gfold-ffi --features schema --bin emit_schema > ../schemas/gfold.schema.json
+      - name: Fail if schema is stale
+        run: git diff --exit-code schemas/gfold.schema.json
+
+  python:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: astral-sh/setup-uv@v5
+      - name: Build + test the wheel
+        working-directory: bindings/python
+        run: |
+          uv venv
+          uv pip install maturin pytest
+          uv run maturin develop
+          uv run pytest -q
