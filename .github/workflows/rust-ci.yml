@@ -1,10 +1,10 @@
-name: Rust
+name: CI
 on:
   push:
   pull_request:
 
 jobs:
-  test:
+  rust:
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -14,6 +14,36 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy
-      - run: cargo test --workspace
-      - run: cargo test --release --workspace
-      - run: cargo clippy --all-targets -- -D warnings
+      - run: cargo test -p gfold-core -p gfold-cli
+      - run: cargo clippy -p gfold-core -p gfold-cli --all-targets -- -D warnings
+
+  python:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: astral-sh/setup-uv@v5
+      - name: Build + test the wheel
+        working-directory: rust/gfold-py
+        run: |
+          uv venv
+          uv pip install maturin pytest numpy
+          uv run maturin develop
+          uv run pytest -q
+
+  wasm:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: jetli/wasm-pack-action@v0.4.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Build + smoke-test wasm
+        working-directory: rust/gfold-wasm
+        run: |
+          wasm-pack build --target nodejs --out-dir pkg
+          node tests/node_smoke.mjs
