@@ -1,7 +1,6 @@
 //! Config types mirroring generator/gfold/config.py.
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct Spacecraft {
     pub wet_mass: f64,
     pub fuel: f64,
@@ -35,7 +34,6 @@ impl Default for Spacecraft {
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct Environment {
     pub gravity: [f64; 3],
     pub glide_slope_angle_deg: f64,
@@ -49,7 +47,6 @@ impl Default for Environment {
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct Solver {
     pub n: usize,
     pub time_of_flight: f64,
@@ -62,7 +59,6 @@ impl Default for Solver {
 }
 
 #[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct Config {
     pub spacecraft: Spacecraft,
     pub environment: Environment,

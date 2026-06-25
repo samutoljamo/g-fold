@@ -4,7 +4,6 @@ use crate::config::Config;
 use clarabel::solver::{DefaultSettings, DefaultSolver, IPSolver, SolverStatus};
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct Trajectory {
     pub positions: Vec<[f64; 3]>,
     pub velocities: Vec<[f64; 3]>,
