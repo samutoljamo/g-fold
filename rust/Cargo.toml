@@ -1,5 +1,5 @@
 [workspace]
-members = ["gfold-core", "gfold-cli"]
+members = ["gfold-core", "gfold-cli", "gfold-py"]
 resolver = "2"
 
 # The solve is dominated by sparse-LDL linear algebra inside clarabel (QDLDL
