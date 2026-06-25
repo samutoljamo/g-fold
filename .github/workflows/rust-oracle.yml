@@ -1,0 +1,36 @@
+name: Rust + Oracle
+on:
+  push:
+  pull_request:
+
+jobs:
+  rust:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: rust
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+      - run: cargo test --workspace
+      - run: cargo test --release --workspace
+      - run: cargo clippy --all-targets -- -D warnings
+
+  oracle-drift:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - name: Sync oracle env
+        working-directory: rust/gfold-fixtures
+        run: uv sync --locked
+      - name: Oracle sanity tests
+        working-directory: rust/gfold-fixtures
+        run: uv run pytest -q
+      - name: Regenerate fixtures from the oracle
+        working-directory: rust/gfold-fixtures
+        run: uv run python -m gfold_oracle.dump
+      - name: Fail if committed fixtures drifted from the oracle
+        run: git diff --exit-code rust/gfold-fixtures/data
