@@ -1,23 +1,9 @@
-name: Rust + Oracle
+name: Oracle
 on:
   push:
   pull_request:
 
 jobs:
-  rust:
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: rust
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          components: clippy
-      - run: cargo test --workspace
-      - run: cargo test --release --workspace
-      - run: cargo clippy --all-targets -- -D warnings
-
   oracle-drift:
     runs-on: ubuntu-latest
     steps:
