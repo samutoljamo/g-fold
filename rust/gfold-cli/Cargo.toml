@@ -1,0 +1,20 @@
+[package]
+name = "gfold-cli"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "gfold"
+path = "src/main.rs"
+
+[dependencies]
+gfold-core = { path = "../gfold-core" }
+clap = { version = "4", features = ["derive"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[dev-dependencies]
+assert_cmd = "2"
+gfold-core = { path = "../gfold-core" }
+serde_json = "1"
+tempfile = "3"
