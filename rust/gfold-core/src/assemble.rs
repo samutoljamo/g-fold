@@ -14,7 +14,7 @@ pub struct Problem {
     pub layout: Layout,
 }
 
-fn rows_to_csc(rows: &[Row], nrows: usize, ncols: usize) -> CscMatrix<f64> {
+pub(crate) fn rows_to_csc(rows: &[Row], nrows: usize, ncols: usize) -> CscMatrix<f64> {
     // collect per-column entries: (row_index, value)
     let mut cols: Vec<Vec<(usize, f64)>> = vec![Vec::new(); ncols];
     for (r, row) in rows.iter().enumerate() {
@@ -189,16 +189,20 @@ pub fn equality_rows(cfg: &Config, _der: &Derived) -> Vec<Row> {
 
     // dynamics
     for i in 0..n - 1 {
-        // position update, per component
+        // Position update, per component. Exact first-order-hold integral of
+        // the double integrator p' = v, v' = u + g: with u piecewise-linear
+        // over the step (matching the velocity update, which is exact for FOH),
+        //   p[i+1] = p[i] + v[i]·dt + dt²·(2·u_i + u_{i+1})/6 + ½·g·dt².
+        // The discrete nodes then lie on the flown trajectory to machine
+        // precision at any n (see examples/accuracy.rs).
         for c in 0..3 {
             rows.push(Row {
                 coeffs: vec![
                     (l.x(i + 1, c), 1.0),
                     (l.x(i, c), -1.0),
-                    (l.x(i, c + 3), -dt / 2.0),
-                    (l.x(i + 1, c + 3), -dt / 2.0),
-                    (l.u(i, c), -dt2 / 4.0),
-                    (l.u(i + 1, c), -dt2 / 4.0),
+                    (l.x(i, c + 3), -dt),
+                    (l.u(i, c), -dt2 / 3.0),
+                    (l.u(i + 1, c), -dt2 / 6.0),
                 ],
                 b: g[c] * dt2 / 2.0,
             });

@@ -39,9 +39,11 @@ pub fn validate(cfg: &Config, traj: &Trajectory, tol: f64) -> Vec<Violation> {
     for i in 0..n-1 {
         for c in 0..3 {
             let acc = (traj.u_values[i+1][c] + traj.u_values[i][c]) / 2.0;
+            // first-order-hold position integral (see assemble::equality_rows)
             let pos_pred = traj.positions[i][c]
-                + (traj.velocities[i][c] + traj.velocities[i+1][c]) * dt / 2.0
-                + (acc * dt2 + g[c] * dt2) / 2.0;
+                + traj.velocities[i][c] * dt
+                + (2.0 * traj.u_values[i][c] + traj.u_values[i+1][c]) * dt2 / 6.0
+                + g[c] * dt2 / 2.0;
             eq("pos_update", i, traj.positions[i+1][c], pos_pred, &mut v);
             let vel_pred = traj.velocities[i][c] + acc * dt + g[c] * dt;
             eq("vel_update", i, traj.velocities[i+1][c], vel_pred, &mut v);

@@ -138,7 +138,9 @@ class GFoldSolver:
             if i != n - 1:
                 acc = (u[i+1, :] + u[i, :])/2
                 constraints += [
-                    x[i+1, :3] == x[i, :3] + (x[i, 3:] + x[i+1, 3:]) * dt / 2 + (acc*dt_squared+g_dt_sq) * (1/2),  # position update
+                    # first-order-hold position integral (u piecewise-linear):
+                    # p[i+1] = p[i] + v[i]*dt + (2*u_i + u_{i+1})*dt^2/6 + g*dt^2/2.
+                    x[i+1, :3] == x[i, :3] + x[i, 3:] * dt + (2*u[i, :] + u[i+1, :]) * dt_squared / 6 + g_dt_sq * (1/2),  # position update
                     x[i+1, 3:] == x[i, 3:] + acc*dt + g_dt,  # velocity update
                     z[i+1] == z[i] - (s[i] + s[i+1]) / 2 * a_dt  # mass update
                 ]
