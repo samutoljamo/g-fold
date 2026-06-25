@@ -13,7 +13,11 @@ serde_json = "1"
 
 [features]
 schema = ["gfold-core/schema", "dep:schemars"]
+wasm = ["dep:wasm-bindgen"]
 
 [dependencies.schemars]
 version = "0.8"
 optional = true
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+wasm-bindgen = { version = "0.2", optional = true }
