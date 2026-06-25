@@ -1,6 +1,8 @@
 //! Config types mirroring generator/gfold/config.py.
 
 #[cfg_attr(feature = "python", pyo3::pyclass(get_all, set_all, from_py_object))]
+#[cfg_attr(feature = "wasm", derive(tsify::Tsify))]
+#[cfg_attr(feature = "wasm", tsify(into_wasm_abi, from_wasm_abi))]
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Spacecraft {
     pub wet_mass: f64,
@@ -54,6 +56,8 @@ impl Spacecraft {
 }
 
 #[cfg_attr(feature = "python", pyo3::pyclass(get_all, set_all, from_py_object))]
+#[cfg_attr(feature = "wasm", derive(tsify::Tsify))]
+#[cfg_attr(feature = "wasm", tsify(into_wasm_abi, from_wasm_abi))]
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Environment {
     pub gravity: [f64; 3],
@@ -77,6 +81,8 @@ impl Environment {
 }
 
 #[cfg_attr(feature = "python", pyo3::pyclass(get_all, set_all, from_py_object))]
+#[cfg_attr(feature = "wasm", derive(tsify::Tsify))]
+#[cfg_attr(feature = "wasm", tsify(into_wasm_abi, from_wasm_abi))]
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Solver {
     pub n: usize,
@@ -99,6 +105,8 @@ impl Solver {
 }
 
 #[cfg_attr(feature = "python", pyo3::pyclass(get_all, set_all, from_py_object))]
+#[cfg_attr(feature = "wasm", derive(tsify::Tsify))]
+#[cfg_attr(feature = "wasm", tsify(into_wasm_abi, from_wasm_abi))]
 #[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
 pub struct Config {
     pub spacecraft: Spacecraft,

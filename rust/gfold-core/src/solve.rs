@@ -3,6 +3,8 @@ use crate::assemble::{assemble, Layout};
 use crate::config::Config;
 use clarabel::solver::{DefaultSettings, DefaultSolver, IPSolver, SolverStatus};
 
+#[cfg_attr(feature = "wasm", derive(tsify::Tsify))]
+#[cfg_attr(feature = "wasm", tsify(into_wasm_abi, from_wasm_abi))]
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Trajectory {
     pub positions: Vec<[f64; 3]>,
