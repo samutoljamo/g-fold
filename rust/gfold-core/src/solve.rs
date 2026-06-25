@@ -3,7 +3,8 @@ use crate::assemble::{assemble, Layout};
 use crate::config::Config;
 use clarabel::solver::{DefaultSettings, DefaultSolver, IPSolver, SolverStatus};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct Trajectory {
     pub positions: Vec<[f64; 3]>,
     pub velocities: Vec<[f64; 3]>,
@@ -87,6 +88,14 @@ mod tests {
     use super::*;
     use crate::config::Config;
     use approx::assert_relative_eq;
+
+    #[test]
+    fn trajectory_serializes_to_json() {
+        let traj = solve(&Config::default()).expect("solve");
+        let json = serde_json::to_string(&traj).expect("serialize");
+        assert!(json.contains("\"positions\""));
+        assert!(json.contains("\"final_mass\""));
+    }
 
     #[test]
     fn solves_default_problem() {

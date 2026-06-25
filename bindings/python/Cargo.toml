@@ -1,0 +1,12 @@
+[package]
+name = "gfold-python"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "_gfold"
+crate-type = ["cdylib"]
+
+[dependencies]
+gfold-ffi = { path = "../../rust/gfold-ffi", features = ["python"] }
+pyo3 = { version = "0.29", features = ["extension-module"] }
