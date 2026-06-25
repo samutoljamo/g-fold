@@ -22,6 +22,18 @@ pub fn solve(cfg: &Config) -> Result<Trajectory, String> {
     let prob = assemble(cfg);
     let settings = DefaultSettings {
         verbose: false,
+        // The default iterative-refinement target (reltol 1e-13, up to 10
+        // passes) is tighter than this guidance problem needs and dominates
+        // the per-iteration "kkt solve" cost. The cost optimum is flat, so a
+        // looser refinement bar lands at a near-identical-cost trajectory that
+        // can sit a small distance away in path space; how far is
+        // config-dependent (the glide-slope case is the most sensitive).
+        // reltol 5e-12 drifts ~1 m on the glide case (past the 1.0 m oracle
+        // tolerance); 1e-12 keeps every committed fixture within ~0.14 m while
+        // still trimming ~5% off the solve. Looser values (1e-10) reach ~15%
+        // but break the fixture gate and destabilize iteration count at large
+        // n. See docs/superpowers/specs/2026-06-24-rust-perf-findings.md.
+        iterative_refinement_reltol: 1e-12,
         ..DefaultSettings::default()
     };
     // In Clarabel 0.11, DefaultSolver::new returns Result<Self, SolverError>
