@@ -13,3 +13,6 @@ dev = ["pytest>=8"]
 
 # No [build-system]: this is a non-published dev tool. uv manages the env and
 # runs it via `uv run`; the package is imported from the project root.
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
