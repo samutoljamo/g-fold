@@ -42,8 +42,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-      - name: Build + smoke-test wasm
+      - name: Build wasm, type-check + run the TypeScript smoke test
         working-directory: rust/gfold-wasm
         run: |
           wasm-pack build --target nodejs --out-dir pkg
-          node tests/node_smoke.mjs
+          npm install
+          npm test   # tsc --noEmit (type-checks against pkg/*.d.ts) && tsx smoke.ts

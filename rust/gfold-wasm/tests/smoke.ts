@@ -1,8 +1,9 @@
-// Node smoke test for gfold-wasm.
-// Run after: wasm-pack build --target nodejs --out-dir pkg
-import { solve } from "../pkg/gfold_wasm.js";
+// Typed smoke test: type-checks against the tsify-generated pkg/gfold_wasm.d.ts
+// (the real verification that the TS interface is correct) AND runs the solve at
+// runtime. `tsc --noEmit` checks types; `tsx` runs this file. See package.json.
+import { solve, type Config } from "../pkg/gfold_wasm.js";
 
-const cfg = {
+const config: Config = {
   spacecraft: {
     wet_mass: 2000,
     fuel: 1700,
@@ -20,10 +21,10 @@ const cfg = {
   solver: { n: 100, time_of_flight: 44.63 },
 };
 
-const traj = solve(cfg);
-const last = traj.positions[traj.positions.length - 1];
+const traj = solve(config); // typed: Trajectory
+const last = traj.positions[traj.positions.length - 1]; // number[] (an [x,y,z])
 if (Math.hypot(...last) > 1.0) {
-  console.error("did not land", last);
+  console.error("did not land:", last);
   process.exit(1);
 }
 console.log("ok: landed", last);
