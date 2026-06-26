@@ -2,6 +2,9 @@
 name = "gfold-cli"
 version = "0.1.0"
 edition = "2021"
+description = "Command-line interface for the G-FOLD powered-descent guidance solver"
+license = "MIT"
+repository = "https://github.com/samutoljamo/g-fold"
 
 [[bin]]
 name = "gfold"

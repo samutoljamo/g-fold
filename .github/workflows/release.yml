@@ -183,6 +183,7 @@ jobs:
   # ---------------------------------------------------------------------------
   publish-wasm:
     name: Publish gfold-wasm to npm
+    needs: [publish-pypi]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -229,6 +230,7 @@ jobs:
   # ---------------------------------------------------------------------------
   publish-crates:
     name: Publish crates to crates.io
+    needs: [publish-pypi]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -244,7 +246,7 @@ jobs:
       # crates.io needs a moment to index the newly published crate before
       # the dependent can resolve it.
       - name: Wait for crates.io to index gfold-core
-        run: sleep 30
+        run: sleep 60
 
       - name: Publish gfold-cli
         working-directory: rust
