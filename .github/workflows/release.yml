@@ -50,6 +50,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
       - name: Build wheels (abi3-py311)
         uses: PyO3/maturin-action@v1
         with:
@@ -58,7 +63,6 @@ jobs:
           args: >-
             --release
             --out dist
-            --interpreter python3.11
         env:
           # abi3-py311 is declared in gfold-py/Cargo.toml; the wheel name will
           # be gfold-<version>-cp311-abi3-<platform>.whl — installable on
@@ -72,11 +76,32 @@ jobs:
           path: rust/gfold-py/dist/*.whl
 
   # ---------------------------------------------------------------------------
-  # Job 2: Publish wheels to PyPI via OIDC Trusted Publishing
+  # Job 2a: Build sdist so platforms outside the wheel matrix can install
+  # ---------------------------------------------------------------------------
+  build-sdist:
+    name: Build sdist
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build sdist
+        uses: PyO3/maturin-action@v1
+        with:
+          command: sdist
+          args: --out dist -m rust/gfold-py/Cargo.toml
+
+      - name: Upload sdist artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sdist
+          path: dist/*.tar.gz
+
+  # ---------------------------------------------------------------------------
+  # Job 2b: Publish wheels + sdist to PyPI via OIDC Trusted Publishing
   # ---------------------------------------------------------------------------
   publish-pypi:
     name: Publish to PyPI
-    needs: build-wheels
+    needs: [build-wheels, build-sdist]
     runs-on: ubuntu-latest
     environment:
       name: pypi
@@ -90,6 +115,12 @@ jobs:
           pattern: wheels-*
           path: dist/
           merge-multiple: true
+
+      - name: Download sdist artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: sdist
+          path: dist/
 
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
