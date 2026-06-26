@@ -1,5 +1,5 @@
 [package]
-name = "gfold-python"
+name = "gfold-py"
 version = "0.1.0"
 edition = "2021"
 
@@ -8,5 +8,7 @@ name = "_gfold"
 crate-type = ["cdylib"]
 
 [dependencies]
-gfold-ffi = { path = "../../rust/gfold-ffi", features = ["python"] }
+gfold-core = { path = "../gfold-core", features = ["python"] }
 pyo3 = { version = "0.29", features = ["extension-module"] }
+numpy = "0.29"
+ndarray = "0.17"

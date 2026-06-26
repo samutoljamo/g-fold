@@ -1,0 +1,12 @@
+{
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "tsc --noEmit -p tests/tsconfig.json && tsx tests/smoke.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^22",
+    "tsx": "^4.19",
+    "typescript": "^5.6"
+  }
+}

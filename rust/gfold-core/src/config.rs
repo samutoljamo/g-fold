@@ -1,7 +1,9 @@
 //! Config types mirroring generator/gfold/config.py.
 
+#[cfg_attr(feature = "python", pyo3::pyclass(get_all, set_all, from_py_object))]
+#[cfg_attr(feature = "wasm", derive(tsify::Tsify))]
+#[cfg_attr(feature = "wasm", tsify(into_wasm_abi, from_wasm_abi))]
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct Spacecraft {
     pub wet_mass: f64,
     pub fuel: f64,
@@ -34,8 +36,29 @@ impl Default for Spacecraft {
     }
 }
 
+#[cfg(feature = "python")]
+#[pyo3::pymethods]
+impl Spacecraft {
+    #[new]
+    #[allow(clippy::too_many_arguments)]
+    fn new(
+        wet_mass: f64, fuel: f64, real_max_thrust: f64,
+        min_thrust_pct: f64, max_thrust_pct: f64, max_velocity: f64,
+        initial_position: [f64; 3], initial_velocity: [f64; 3],
+        target_velocity: [f64; 3], target_position: [f64; 3],
+        fuel_consumption: f64,
+    ) -> Self {
+        Self {
+            wet_mass, fuel, real_max_thrust, min_thrust_pct, max_thrust_pct, max_velocity,
+            initial_position, initial_velocity, target_velocity, target_position, fuel_consumption,
+        }
+    }
+}
+
+#[cfg_attr(feature = "python", pyo3::pyclass(get_all, set_all, from_py_object))]
+#[cfg_attr(feature = "wasm", derive(tsify::Tsify))]
+#[cfg_attr(feature = "wasm", tsify(into_wasm_abi, from_wasm_abi))]
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct Environment {
     pub gravity: [f64; 3],
     pub glide_slope_angle_deg: f64,
@@ -48,8 +71,19 @@ impl Default for Environment {
     }
 }
 
+#[cfg(feature = "python")]
+#[pyo3::pymethods]
+impl Environment {
+    #[new]
+    fn new(gravity: [f64; 3], glide_slope_angle_deg: f64, max_angle_deg: f64) -> Self {
+        Self { gravity, glide_slope_angle_deg, max_angle_deg }
+    }
+}
+
+#[cfg_attr(feature = "python", pyo3::pyclass(get_all, set_all, from_py_object))]
+#[cfg_attr(feature = "wasm", derive(tsify::Tsify))]
+#[cfg_attr(feature = "wasm", tsify(into_wasm_abi, from_wasm_abi))]
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct Solver {
     pub n: usize,
     pub time_of_flight: f64,
@@ -61,8 +95,19 @@ impl Default for Solver {
     }
 }
 
+#[cfg(feature = "python")]
+#[pyo3::pymethods]
+impl Solver {
+    #[new]
+    fn new(n: usize, time_of_flight: f64) -> Self {
+        Self { n, time_of_flight }
+    }
+}
+
+#[cfg_attr(feature = "python", pyo3::pyclass(get_all, set_all, from_py_object))]
+#[cfg_attr(feature = "wasm", derive(tsify::Tsify))]
+#[cfg_attr(feature = "wasm", tsify(into_wasm_abi, from_wasm_abi))]
 #[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct Config {
     pub spacecraft: Spacecraft,
     pub environment: Environment,
@@ -77,6 +122,15 @@ impl Config {
     pub fn sin_glide_slope(&self) -> f64 { self.environment.glide_slope_angle_deg.to_radians().sin() }
     pub fn cos_max_angle(&self) -> f64 { self.environment.max_angle_deg.to_radians().cos() }
     pub fn dt(&self) -> f64 { self.solver.time_of_flight / self.solver.n as f64 }
+}
+
+#[cfg(feature = "python")]
+#[pyo3::pymethods]
+impl Config {
+    #[new]
+    fn new(spacecraft: Spacecraft, environment: Environment, solver: Solver) -> Self {
+        Self { spacecraft, environment, solver }
+    }
 }
 
 #[cfg(test)]

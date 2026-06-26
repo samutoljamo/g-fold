@@ -6,9 +6,8 @@ build-backend = "maturin"
 name = "gfold"
 version = "0.1.0"
 requires-python = ">=3.11"
+dependencies = ["numpy"]
 
 [tool.maturin]
-features = ["pyo3/extension-module"]
-manifest-path = "Cargo.toml"
 module-name = "gfold._gfold"
 python-source = "python"
