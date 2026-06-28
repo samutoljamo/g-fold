@@ -45,7 +45,6 @@ jobs:
         os:
           - ubuntu-latest    # linux x86_64 (manylinux via maturin-action)
           - macos-latest     # macOS aarch64 (Apple Silicon runner)
-          - macos-13         # macOS x86_64
           - windows-latest   # Windows x86_64-msvc
     steps:
       - uses: actions/checkout@v4
@@ -145,9 +144,6 @@ jobs:
           - os: macos-latest
             target: aarch64-apple-darwin
             asset_name: gfold-macos-aarch64
-          - os: macos-13
-            target: x86_64-apple-darwin
-            asset_name: gfold-macos-x86_64
           - os: windows-latest
             target: x86_64-pc-windows-msvc
             asset_name: gfold-windows-x86_64.exe
