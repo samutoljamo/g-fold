@@ -30,3 +30,14 @@ def test_infeasible_raises():
     cfg.solver = gfold.Solver(n=100, time_of_flight=0.001)
     with pytest.raises(ValueError):
         gfold.solve(cfg)
+
+
+def test_defaults_constructible():
+    cfg = gfold.Config()
+    assert cfg.spacecraft.wet_mass == 2000.0
+    assert cfg.environment.gravity == [0.0, 0.0, -3.71]
+    assert cfg.solver.n == 100
+    # override a single field, rest defaulted
+    sc = gfold.Spacecraft(wet_mass=1500.0)
+    assert sc.wet_mass == 1500.0
+    assert sc.fuel == 1700.0
