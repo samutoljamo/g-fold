@@ -12,10 +12,14 @@
 #       Environment name: pypi
 #
 #   npm (gfold-wasm):
-#     - NPM_TOKEN: a granular npm access token with publish rights.
+#     - No token needed. Uses OIDC Trusted Publishing (npm >= 11.5.1).
 #       The package is published as @samutoljamo/gfold (scoped) because
 #       the bare name "gfold" may already be taken on the public registry.
-#       Create the npm scope/package before the first publish run.
+#       One-time bootstrap: publish a placeholder of @samutoljamo/gfold
+#       manually, then on npmjs.com configure a Trusted Publisher for it:
+#         Publisher: GitHub Actions
+#         Owner: samutoljamo, Repository: g-fold
+#         Workflow filename: release.yml  (no environment)
 #
 #   crates.io (gfold-core, gfold-cli):
 #     - CARGO_REGISTRY_TOKEN: an API token from crates.io (Account → API Tokens).
@@ -181,6 +185,9 @@ jobs:
     name: Publish gfold-wasm to npm
     needs: [publish-pypi]
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write  # OIDC trusted publishing — no NPM_TOKEN needed
+      contents: read
     steps:
       - uses: actions/checkout@v4
 
@@ -192,8 +199,11 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
           registry-url: https://registry.npmjs.org
+
+      - name: Upgrade npm for trusted publishing (requires >= 11.5.1)
+        run: npm install -g npm@latest
 
       - name: Build wasm package
         working-directory: rust/gfold-wasm
@@ -212,11 +222,12 @@ jobs:
           fs.writeFileSync('package.json', JSON.stringify(p, null, 2));
           "
 
-      - name: Publish to npm
+      - name: Publish to npm (OIDC trusted publishing)
+        # No token: npm >= 11.5.1 authenticates via the GitHub Actions OIDC
+        # token (id-token: write) against the trusted publisher configured on
+        # the @samutoljamo/gfold package, and attaches build provenance.
         working-directory: rust/gfold-wasm/pkg
         run: npm publish --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
   # ---------------------------------------------------------------------------
   # Job 5: Publish crates to crates.io
