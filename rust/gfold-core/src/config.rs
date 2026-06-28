@@ -97,12 +97,18 @@ impl Environment {
 #[serde(default)]
 pub struct Solver {
     pub n: usize,
-    pub time_of_flight: f64,
+    /// Discretization horizon. `None` ⇒ `solve` searches for the fuel-optimal
+    /// time-of-flight (see [`crate::search`]).
+    pub time_of_flight: Option<f64>,
+    /// Lower bound for the time-of-flight search. `None` ⇒ auto-bracket.
+    pub tof_min: Option<f64>,
+    /// Upper bound for the time-of-flight search. `None` ⇒ auto-bracket.
+    pub tof_max: Option<f64>,
 }
 
 impl Default for Solver {
     fn default() -> Self {
-        Self { n: 100, time_of_flight: 44.63 }
+        Self { n: 100, time_of_flight: None, tof_min: None, tof_max: None }
     }
 }
 
@@ -110,8 +116,9 @@ impl Default for Solver {
 #[pyo3::pymethods]
 impl Solver {
     #[new]
-    fn new(n: usize, time_of_flight: f64) -> Self {
-        Self { n, time_of_flight }
+    #[pyo3(signature = (n = 100, time_of_flight = None, tof_min = None, tof_max = None))]
+    fn new(n: usize, time_of_flight: Option<f64>, tof_min: Option<f64>, tof_max: Option<f64>) -> Self {
+        Self { n, time_of_flight, tof_min, tof_max }
     }
 }
 
@@ -133,7 +140,9 @@ impl Config {
     pub fn max_thrust(&self) -> f64 { self.spacecraft.real_max_thrust * self.spacecraft.max_thrust_pct }
     pub fn sin_glide_slope(&self) -> f64 { self.environment.glide_slope_angle_deg.to_radians().sin() }
     pub fn cos_max_angle(&self) -> f64 { self.environment.max_angle_deg.to_radians().cos() }
-    pub fn dt(&self) -> f64 { self.solver.time_of_flight / self.solver.n as f64 }
+    pub fn dt(&self) -> f64 {
+        self.solver.time_of_flight.expect("time_of_flight must be set before dt()") / self.solver.n as f64
+    }
 }
 
 #[cfg(feature = "python")]
@@ -157,7 +166,7 @@ mod tests {
         assert_eq!(c.spacecraft.wet_mass, 2000.0);
         assert_eq!(c.spacecraft.fuel, 1700.0);
         assert_eq!(c.solver.n, 100);
-        assert_relative_eq!(c.solver.time_of_flight, 44.63);
+        assert!(c.solver.time_of_flight.is_none());
         assert_eq!(c.environment.gravity, [0.0, 0.0, -3.71]);
     }
 
@@ -173,7 +182,8 @@ mod tests {
 
     #[test]
     fn derived_quantities() {
-        let c = Config::default();
+        let mut c = Config::default();
+        c.solver.time_of_flight = Some(44.63);
         assert_relative_eq!(c.log_wet_mass(), (2000.0_f64).ln());
         assert_relative_eq!(c.log_dry_mass(), (2000.0_f64 - 1700.0).ln());
         assert_relative_eq!(c.min_thrust(), 24000.0 * 0.2);

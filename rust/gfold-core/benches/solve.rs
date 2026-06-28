@@ -8,6 +8,7 @@ fn bench(c: &mut Criterion) {
     for &n in &[20usize, 50, 100, 200] {
         let mut cfg = Config::default();
         cfg.solver.n = n;
+        cfg.solver.time_of_flight = Some(44.63);
         group.bench_with_input(BenchmarkId::new("assemble", n), &cfg, |b, cfg| {
             b.iter(|| assemble(cfg));
         });

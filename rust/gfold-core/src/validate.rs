@@ -14,8 +14,13 @@ fn norm3(v: &[f64; 3]) -> f64 { (v[0]*v[0] + v[1]*v[1] + v[2]*v[2]).sqrt() }
 
 pub fn validate(cfg: &Config, traj: &Trajectory, tol: f64) -> Vec<Violation> {
     let n = cfg.solver.n;
-    let derived = derive(cfg);
-    let dt = cfg.dt();
+    // Derive against the trajectory's actual time-of-flight: the config may
+    // have `time_of_flight: None` (search path), but the per-step log-mass
+    // linearization depends on the dt the trajectory was solved at.
+    let mut derive_cfg = cfg.clone();
+    derive_cfg.solver.time_of_flight = Some(traj.time_of_flight);
+    let derived = derive(&derive_cfg);
+    let dt = traj.time_of_flight / cfg.solver.n as f64;
     let dt2 = dt * dt;
     let g = cfg.environment.gravity;
     let a_dt = cfg.spacecraft.fuel_consumption * dt;

@@ -23,7 +23,7 @@ pub struct Trajectory {
 
 pub fn solve_fixed(cfg: &Config, tof: f64) -> Result<Trajectory, String> {
     let mut cfg = cfg.clone();
-    cfg.solver.time_of_flight = tof;
+    cfg.solver.time_of_flight = Some(tof);
     let prob = assemble(&cfg);
     let settings = DefaultSettings {
         verbose: false,
@@ -89,7 +89,10 @@ pub fn solve_fixed(cfg: &Config, tof: f64) -> Result<Trajectory, String> {
 }
 
 pub fn solve(cfg: &Config) -> Result<Trajectory, String> {
-    solve_fixed(cfg, cfg.solver.time_of_flight)
+    match cfg.solver.time_of_flight {
+        Some(t) => solve_fixed(cfg, t),
+        None => crate::search::search_tof(cfg).map(|(_, traj)| traj),
+    }
 }
 
 #[cfg(test)]
@@ -111,6 +114,17 @@ mod tests {
         let json = serde_json::to_string(&traj).expect("serialize");
         assert!(json.contains("\"positions\""));
         assert!(json.contains("\"final_mass\""));
+    }
+
+    #[test]
+    fn solve_searches_when_tof_none() {
+        let cfg = Config::default();
+        assert!(cfg.solver.time_of_flight.is_none());
+        let traj = solve(&cfg).expect("auto-solve");
+        let n = cfg.solver.n;
+        assert_relative_eq!(traj.positions[n - 1][0], 0.0, epsilon = 1e-2);
+        assert_relative_eq!(traj.positions[n - 1][2], 0.0, epsilon = 1e-2);
+        assert!(traj.time_of_flight > 0.0);
     }
 
     #[test]

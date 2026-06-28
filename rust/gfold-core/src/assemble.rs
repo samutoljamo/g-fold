@@ -336,7 +336,8 @@ mod tests {
 
     #[test]
     fn velocity_update_row_residual_zero_for_consistent_point() {
-        let cfg = Config::default();
+        let mut cfg = Config::default();
+        cfg.solver.time_of_flight = Some(44.63);
         let der = crate::derive::derive(&cfg);
         let l = Layout { n: cfg.solver.n };
         let dt = cfg.dt();
@@ -360,7 +361,8 @@ mod tests {
 
     #[test]
     fn equality_row_count() {
-        let cfg = Config::default();
+        let mut cfg = Config::default();
+        cfg.solver.time_of_flight = Some(44.63);
         let der = crate::derive::derive(&cfg);
         let n = cfg.solver.n;
         let rows = equality_rows(&cfg, &der);
@@ -392,7 +394,8 @@ mod tests {
 
     #[test]
     fn thrust_upper_bound_residual() {
-        let cfg = Config::default();
+        let mut cfg = Config::default();
+        cfg.solver.time_of_flight = Some(44.63);
         let der = crate::derive::derive(&cfg);
         let l = Layout { n: cfg.solver.n };
         let rows = nonneg_bounds(&cfg, &der);
@@ -406,7 +409,8 @@ mod tests {
 
     #[test]
     fn nonneg_row_count() {
-        let cfg = Config::default();
+        let mut cfg = Config::default();
+        cfg.solver.time_of_flight = Some(44.63);
         let der = crate::derive::derive(&cfg);
         let rows = nonneg_bounds(&cfg, &der);
         assert_eq!(rows.len(), cfg.solver.n + 1);
@@ -414,7 +418,8 @@ mod tests {
 
     #[test]
     fn assemble_shapes_and_q() {
-        let cfg = Config::default();
+        let mut cfg = Config::default();
+        cfg.solver.time_of_flight = Some(44.63);
         let prob = assemble(&cfg);
         let n = cfg.solver.n;
         assert_eq!(prob.q.len(), 11 * n);
@@ -426,7 +431,8 @@ mod tests {
 
     #[test]
     fn thrust_lower_cone_membership_feasible() {
-        let cfg = Config::default();
+        let mut cfg = Config::default();
+        cfg.solver.time_of_flight = Some(44.63);
         let der = crate::derive::derive(&cfg);
         let l = Layout { n: cfg.solver.n };
         let m = der.min_exp[0];
