@@ -4,6 +4,7 @@
 #[cfg_attr(feature = "wasm", derive(tsify::Tsify))]
 #[cfg_attr(feature = "wasm", tsify(into_wasm_abi, from_wasm_abi))]
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(default)]
 pub struct Spacecraft {
     pub wet_mass: f64,
     pub fuel: f64,
@@ -59,6 +60,7 @@ impl Spacecraft {
 #[cfg_attr(feature = "wasm", derive(tsify::Tsify))]
 #[cfg_attr(feature = "wasm", tsify(into_wasm_abi, from_wasm_abi))]
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(default)]
 pub struct Environment {
     pub gravity: [f64; 3],
     pub glide_slope_angle_deg: f64,
@@ -84,6 +86,7 @@ impl Environment {
 #[cfg_attr(feature = "wasm", derive(tsify::Tsify))]
 #[cfg_attr(feature = "wasm", tsify(into_wasm_abi, from_wasm_abi))]
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(default)]
 pub struct Solver {
     pub n: usize,
     pub time_of_flight: f64,
@@ -108,6 +111,7 @@ impl Solver {
 #[cfg_attr(feature = "wasm", derive(tsify::Tsify))]
 #[cfg_attr(feature = "wasm", tsify(into_wasm_abi, from_wasm_abi))]
 #[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
+#[serde(default)]
 pub struct Config {
     pub spacecraft: Spacecraft,
     pub environment: Environment,
@@ -146,6 +150,16 @@ mod tests {
         assert_eq!(c.solver.n, 100);
         assert_relative_eq!(c.solver.time_of_flight, 44.63);
         assert_eq!(c.environment.gravity, [0.0, 0.0, -3.71]);
+    }
+
+    #[test]
+    fn partial_json_fills_defaults() {
+        let cfg: Config = serde_json::from_str(r#"{"spacecraft":{"wet_mass":1500.0}}"#).unwrap();
+        assert_eq!(cfg.spacecraft.wet_mass, 1500.0);
+        // untouched fields fall back to Spacecraft::default()
+        assert_eq!(cfg.spacecraft.fuel, 1700.0);
+        assert_eq!(cfg.environment.gravity, [0.0, 0.0, -3.71]);
+        assert_eq!(cfg.solver.n, 100);
     }
 
     #[test]
