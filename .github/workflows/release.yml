@@ -1,0 +1,255 @@
+# Release workflow — triggered on pushed tags matching v*
+#
+# Required secrets / configuration:
+#
+#   PyPI (gfold-py wheels):
+#     - No token needed. Uses OIDC Trusted Publishing.
+#     - On PyPI, create a Trusted Publisher for this repo:
+#       Publisher: GitHub Actions
+#       Owner: samutoljamo (GitHub username)
+#       Repository: g-fold
+#       Workflow filename: release.yml
+#       Environment name: pypi
+#
+#   npm (gfold-wasm):
+#     - NPM_TOKEN: a granular npm access token with publish rights.
+#       The package is published as @samutoljamo/gfold (scoped) because
+#       the bare name "gfold" may already be taken on the public registry.
+#       Create the npm scope/package before the first publish run.
+#
+#   crates.io (gfold-core, gfold-cli):
+#     - CARGO_REGISTRY_TOKEN: an API token from crates.io (Account → API Tokens).
+#       Note: the bare crate name "gfold" is likely taken; crates publish as
+#       "gfold-core" and "gfold-cli" which must be claimed on crates.io first.
+#
+#   GitHub Release (gfold-cli binaries):
+#     - No extra secret; uses the built-in GITHUB_TOKEN (permissions: contents: write).
+
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+# ---------------------------------------------------------------------------
+# Job 1: Build PyPI wheels (abi3, one wheel per platform for Python >= 3.11)
+# ---------------------------------------------------------------------------
+jobs:
+  build-wheels:
+    name: Build wheels (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-latest    # linux x86_64 (manylinux via maturin-action)
+          - macos-latest     # macOS aarch64 (Apple Silicon runner)
+          - macos-13         # macOS x86_64
+          - windows-latest   # Windows x86_64-msvc
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Build wheels (abi3-py311)
+        uses: PyO3/maturin-action@v1
+        with:
+          # maturin-action uses manylinux on Linux automatically
+          working-directory: rust/gfold-py
+          args: >-
+            --release
+            --out dist
+        env:
+          # abi3-py311 is declared in gfold-py/Cargo.toml; the wheel name will
+          # be gfold-<version>-cp311-abi3-<platform>.whl — installable on
+          # Python 3.11, 3.12, 3.13, ... without rebuilding.
+          MATURIN_PYPI_TOKEN: ""  # not used; publish step uses OIDC
+
+      - name: Upload wheels artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: wheels-${{ matrix.os }}
+          path: rust/gfold-py/dist/*.whl
+
+  # ---------------------------------------------------------------------------
+  # Job 2a: Build sdist so platforms outside the wheel matrix can install
+  # ---------------------------------------------------------------------------
+  build-sdist:
+    name: Build sdist
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build sdist
+        uses: PyO3/maturin-action@v1
+        with:
+          command: sdist
+          args: --out dist -m rust/gfold-py/Cargo.toml
+
+      - name: Upload sdist artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sdist
+          path: dist/*.tar.gz
+
+  # ---------------------------------------------------------------------------
+  # Job 2b: Publish wheels + sdist to PyPI via OIDC Trusted Publishing
+  # ---------------------------------------------------------------------------
+  publish-pypi:
+    name: Publish to PyPI
+    needs: [build-wheels, build-sdist]
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/gfold
+    permissions:
+      id-token: write  # mandatory for OIDC Trusted Publishing — no token needed
+    steps:
+      - name: Download all wheel artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: wheels-*
+          path: dist/
+          merge-multiple: true
+
+      - name: Download sdist artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: sdist
+          path: dist/
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: dist/
+
+  # ---------------------------------------------------------------------------
+  # Job 3: Build gfold CLI binaries and attach to GitHub Release
+  # ---------------------------------------------------------------------------
+  build-cli:
+    name: Build CLI (${{ matrix.target }})
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: write  # required to upload release assets
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            asset_name: gfold-linux-x86_64
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            asset_name: gfold-macos-aarch64
+          - os: macos-13
+            target: x86_64-apple-darwin
+            asset_name: gfold-macos-x86_64
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            asset_name: gfold-windows-x86_64.exe
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Build release binary
+        working-directory: rust
+        run: cargo build --release -p gfold-cli --target ${{ matrix.target }}
+
+      - name: Stage binary (Unix)
+        if: runner.os != 'Windows'
+        run: |
+          cp rust/target/${{ matrix.target }}/release/gfold ${{ matrix.asset_name }}
+
+      - name: Stage binary (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          cp rust/target/${{ matrix.target }}/release/gfold.exe ${{ matrix.asset_name }}
+
+      - name: Upload to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ matrix.asset_name }}
+          # Release is created automatically from the tag; add body if desired.
+
+  # ---------------------------------------------------------------------------
+  # Job 4: Build and publish gfold-wasm to npm
+  # ---------------------------------------------------------------------------
+  publish-wasm:
+    name: Publish gfold-wasm to npm
+    needs: [publish-pypi]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - uses: jetli/wasm-pack-action@v0.4.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          registry-url: https://registry.npmjs.org
+
+      - name: Build wasm package
+        working-directory: rust/gfold-wasm
+        run: wasm-pack build --release --target bundler --out-dir pkg
+
+      - name: Set package scope/name
+        # The package name in pkg/package.json will be whatever wasm-pack
+        # derives from the crate name. We override it to the scoped name
+        # @samutoljamo/gfold to avoid conflicts with any existing "gfold" pkg.
+        working-directory: rust/gfold-wasm/pkg
+        run: |
+          node -e "
+          const fs = require('fs');
+          const p = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+          p.name = '@samutoljamo/gfold';
+          fs.writeFileSync('package.json', JSON.stringify(p, null, 2));
+          "
+
+      - name: Publish to npm
+        working-directory: rust/gfold-wasm/pkg
+        run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+  # ---------------------------------------------------------------------------
+  # Job 5: Publish crates to crates.io
+  # Ordering: gfold-core first (gfold-cli depends on it), then gfold-cli.
+  # gfold-py and gfold-wasm are not published to crates.io (they ship as
+  # PyPI / npm packages respectively).
+  # ---------------------------------------------------------------------------
+  publish-crates:
+    name: Publish crates to crates.io
+    needs: [publish-pypi]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Publish gfold-core
+        working-directory: rust
+        run: cargo publish -p gfold-core
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+
+      # crates.io needs a moment to index the newly published crate before
+      # the dependent can resolve it.
+      - name: Wait for crates.io to index gfold-core
+        run: sleep 60
+
+      - name: Publish gfold-cli
+        working-directory: rust
+        run: cargo publish -p gfold-cli
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
