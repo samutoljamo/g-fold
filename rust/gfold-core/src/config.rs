@@ -153,6 +153,17 @@ impl Config {
     fn new(spacecraft: Spacecraft, environment: Environment, solver: Solver) -> Self {
         Self { spacecraft, environment, solver }
     }
+
+    fn to_json(&self) -> pyo3::PyResult<String> {
+        serde_json::to_string_pretty(self)
+            .map_err(|e| pyo3::exceptions::PyValueError::new_err(e.to_string()))
+    }
+
+    #[staticmethod]
+    fn from_json(s: &str) -> pyo3::PyResult<Self> {
+        serde_json::from_str(s)
+            .map_err(|e| pyo3::exceptions::PyValueError::new_err(e.to_string()))
+    }
 }
 
 #[cfg(test)]

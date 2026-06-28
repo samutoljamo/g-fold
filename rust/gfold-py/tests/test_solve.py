@@ -41,3 +41,13 @@ def test_defaults_constructible():
     sc = gfold.Spacecraft(wet_mass=1500.0)
     assert sc.wet_mass == 1500.0
     assert sc.fuel == 1700.0
+
+
+def test_config_json_roundtrip_and_autosolve():
+    cfg = gfold.Config()                 # defaults; time_of_flight => search
+    s = cfg.to_json()
+    cfg2 = gfold.Config.from_json(s)
+    assert cfg2.spacecraft.wet_mass == cfg.spacecraft.wet_mass
+    traj = gfold.solve(cfg2)             # no time_of_flight supplied
+    assert traj.positions.shape == (100, 3)
+    assert np.all(np.abs(traj.positions[-1]) < 1.0)
