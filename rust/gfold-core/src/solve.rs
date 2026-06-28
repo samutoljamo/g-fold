@@ -16,12 +16,15 @@ pub struct Trajectory {
     pub s_values: Vec<f64>,
     pub objective: f64,
     pub final_mass: f64,
+    pub time_of_flight: f64,
     pub time_points: Vec<f64>,
     pub status: String,
 }
 
-pub fn solve(cfg: &Config) -> Result<Trajectory, String> {
-    let prob = assemble(cfg);
+pub fn solve_fixed(cfg: &Config, tof: f64) -> Result<Trajectory, String> {
+    let mut cfg = cfg.clone();
+    cfg.solver.time_of_flight = tof;
+    let prob = assemble(&cfg);
     let settings = DefaultSettings {
         verbose: false,
         ..DefaultSettings::default()
@@ -79,9 +82,14 @@ pub fn solve(cfg: &Config) -> Result<Trajectory, String> {
         s_values,
         objective: z_final,
         final_mass: z_final.exp(),
+        time_of_flight: tof,
         time_points,
         status: format!("{:?}", status),
     })
+}
+
+pub fn solve(cfg: &Config) -> Result<Trajectory, String> {
+    solve_fixed(cfg, cfg.solver.time_of_flight)
 }
 
 #[cfg(test)]
@@ -89,6 +97,13 @@ mod tests {
     use super::*;
     use crate::config::Config;
     use approx::assert_relative_eq;
+
+    #[test]
+    fn trajectory_records_time_of_flight() {
+        let traj = solve_fixed(&Config::default(), 44.63).expect("solve");
+        assert_relative_eq!(traj.time_of_flight, 44.63);
+        assert_eq!(traj.time_points.len(), Config::default().solver.n);
+    }
 
     #[test]
     fn trajectory_serializes_to_json() {
