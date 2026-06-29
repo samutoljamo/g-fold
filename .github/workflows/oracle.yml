@@ -15,14 +15,14 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - uses: astral-sh/setup-uv@v5
       - name: Sync oracle env
-        working-directory: rust/gfold-fixtures
+        working-directory: gfold-fixtures
         run: uv sync --locked
       - name: Oracle sanity tests
-        working-directory: rust/gfold-fixtures
+        working-directory: gfold-fixtures
         run: uv run pytest -q
       - name: Generate fixtures from the oracle
-        working-directory: rust/gfold-fixtures
+        working-directory: gfold-fixtures
         run: uv run python -m gfold_oracle.dump
       - name: Differential test — Rust solver vs fresh oracle fixtures
-        working-directory: rust
+        working-directory: .
         run: cargo test -p gfold-core --test fixtures

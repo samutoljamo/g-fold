@@ -62,7 +62,7 @@ jobs:
         uses: PyO3/maturin-action@v1
         with:
           # maturin-action uses manylinux on Linux automatically
-          working-directory: rust/gfold-py
+          working-directory: gfold-py
           args: >-
             --release
             --out dist
@@ -76,7 +76,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: wheels-${{ matrix.os }}
-          path: rust/gfold-py/dist/*.whl
+          path: gfold-py/dist/*.whl
 
   # ---------------------------------------------------------------------------
   # Job 2a: Build sdist so platforms outside the wheel matrix can install
@@ -91,7 +91,7 @@ jobs:
         uses: PyO3/maturin-action@v1
         with:
           command: sdist
-          args: --out dist -m rust/gfold-py/Cargo.toml
+          args: --out dist -m gfold-py/Cargo.toml
 
       - name: Upload sdist artifact
         uses: actions/upload-artifact@v4
@@ -159,18 +159,18 @@ jobs:
           targets: ${{ matrix.target }}
 
       - name: Build release binary
-        working-directory: rust
+        working-directory: .
         run: cargo build --release -p gfold-cli --target ${{ matrix.target }}
 
       - name: Stage binary (Unix)
         if: runner.os != 'Windows'
         run: |
-          cp rust/target/${{ matrix.target }}/release/gfold ${{ matrix.asset_name }}
+          cp target/${{ matrix.target }}/release/gfold ${{ matrix.asset_name }}
 
       - name: Stage binary (Windows)
         if: runner.os == 'Windows'
         run: |
-          cp rust/target/${{ matrix.target }}/release/gfold.exe ${{ matrix.asset_name }}
+          cp target/${{ matrix.target }}/release/gfold.exe ${{ matrix.asset_name }}
 
       - name: Upload to GitHub Release
         uses: softprops/action-gh-release@v2
@@ -206,7 +206,7 @@ jobs:
         run: npm install -g npm@latest
 
       - name: Build wasm package
-        working-directory: rust/gfold-wasm
+        working-directory: gfold-wasm
         run: wasm-pack build --release --target bundler --out-dir pkg
 
       - name: Set package scope/name + repository
@@ -215,7 +215,7 @@ jobs:
         # @samutoljamo/gfold to avoid conflicts with any existing "gfold" pkg.
         # The repository URL must be present and match the source repo, or
         # npm rejects the OIDC provenance bundle (E422 "repository.url is '').
-        working-directory: rust/gfold-wasm/pkg
+        working-directory: gfold-wasm/pkg
         run: |
           node -e "
           const fs = require('fs');
@@ -229,7 +229,7 @@ jobs:
         # No token: npm >= 11.5.1 authenticates via the GitHub Actions OIDC
         # token (id-token: write) against the trusted publisher configured on
         # the @samutoljamo/gfold package, and attaches build provenance.
-        working-directory: rust/gfold-wasm/pkg
+        working-directory: gfold-wasm/pkg
         run: npm publish --access public
 
   # ---------------------------------------------------------------------------
@@ -248,7 +248,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
 
       - name: Publish gfold-core
-        working-directory: rust
+        working-directory: .
         run: cargo publish -p gfold-core
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
@@ -259,7 +259,7 @@ jobs:
         run: sleep 60
 
       - name: Publish gfold-cli
-        working-directory: rust
+        working-directory: .
         run: cargo publish -p gfold-cli
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}

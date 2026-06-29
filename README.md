@@ -13,14 +13,14 @@ G-FOLD is a convex-optimization algorithm that generates the fuel-optimal path t
 This repository is organized into language-specific implementations:
 
 - `generator/` - Python package that implements G-FOLD and generates C/C++ code using CVXPYGen
-- `rust/gfold-core/` - Rust implementation solving the SOCP directly with Clarabel ([README](rust/gfold-core/README.md))
+- `gfold-core/` - Rust implementation solving the SOCP directly with Clarabel ([README](gfold-core/README.md))
 
 ## Getting Started
 
 Choose the implementation that best fits your needs:
 
 - For Python usage or code generation, see [Generator README](generator/README.md)
-- For the Rust solver, see [gfold-core README](rust/gfold-core/README.md)
+- For the Rust solver, see [gfold-core README](gfold-core/README.md)
 
 ## Platform Support
 By default, all tools work on Windows, macOS and Linux. However, c++ code generation feature will not support windows, but the bindings that use the generated code will run on windows too.
