@@ -1,0 +1,215 @@
+# Package publishing — triggered on pushed tags matching v*
+#
+# This workflow publishes the library/binding packages to their registries.
+# The gfold CLI binaries + shell installer + GitHub Release are produced
+# separately by the cargo-dist-generated `release.yml` (do not duplicate here).
+#
+# Required secrets / configuration:
+#
+#   PyPI (gfold-py wheels):
+#     - No token needed. Uses OIDC Trusted Publishing.
+#     - On PyPI, the Trusted Publisher for this repo must point at:
+#       Publisher: GitHub Actions
+#       Owner: samutoljamo (GitHub username)
+#       Repository: g-fold
+#       Workflow filename: publish-packages.yml
+#       Environment name: pypi
+#
+#   npm (gfold-wasm):
+#     - No token needed. Uses OIDC Trusted Publishing (npm >= 11.5.1).
+#       Published as @samutoljamo/gfold (scoped). The npm Trusted Publisher
+#       must point at:
+#         Publisher: GitHub Actions
+#         Owner: samutoljamo, Repository: g-fold
+#         Workflow filename: publish-packages.yml  (no environment)
+#
+#   crates.io (gfold-core, gfold-cli):
+#     - CARGO_REGISTRY_TOKEN: an API token from crates.io (Account → API Tokens).
+#       Crates publish as "gfold-core" and "gfold-cli".
+
+name: Publish packages
+
+on:
+  push:
+    tags:
+      - "v*"
+
+# ---------------------------------------------------------------------------
+# Job 1: Build PyPI wheels (abi3, one wheel per platform for Python >= 3.11)
+# ---------------------------------------------------------------------------
+jobs:
+  build-wheels:
+    name: Build wheels (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-latest    # linux x86_64 (manylinux via maturin-action)
+          - macos-latest     # macOS aarch64 (Apple Silicon runner)
+          - windows-latest   # Windows x86_64-msvc
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Build wheels (abi3-py311)
+        uses: PyO3/maturin-action@v1
+        with:
+          # maturin-action uses manylinux on Linux automatically
+          working-directory: gfold-py
+          args: >-
+            --release
+            --out dist
+        env:
+          # abi3-py311 is declared in gfold-py/Cargo.toml; the wheel name will
+          # be gfold-<version>-cp311-abi3-<platform>.whl — installable on
+          # Python 3.11, 3.12, 3.13, ... without rebuilding.
+          MATURIN_PYPI_TOKEN: ""  # not used; publish step uses OIDC
+
+      - name: Upload wheels artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: wheels-${{ matrix.os }}
+          path: gfold-py/dist/*.whl
+
+  # ---------------------------------------------------------------------------
+  # Job 2a: Build sdist so platforms outside the wheel matrix can install
+  # ---------------------------------------------------------------------------
+  build-sdist:
+    name: Build sdist
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build sdist
+        uses: PyO3/maturin-action@v1
+        with:
+          command: sdist
+          args: --out dist -m gfold-py/Cargo.toml
+
+      - name: Upload sdist artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sdist
+          path: dist/*.tar.gz
+
+  # ---------------------------------------------------------------------------
+  # Job 2b: Publish wheels + sdist to PyPI via OIDC Trusted Publishing
+  # ---------------------------------------------------------------------------
+  publish-pypi:
+    name: Publish to PyPI
+    needs: [build-wheels, build-sdist]
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/gfold
+    permissions:
+      id-token: write  # mandatory for OIDC Trusted Publishing — no token needed
+    steps:
+      - name: Download all wheel artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: wheels-*
+          path: dist/
+          merge-multiple: true
+
+      - name: Download sdist artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: sdist
+          path: dist/
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: dist/
+
+  # ---------------------------------------------------------------------------
+  # Job 3: Build and publish gfold-wasm to npm
+  # ---------------------------------------------------------------------------
+  publish-wasm:
+    name: Publish gfold-wasm to npm
+    needs: [publish-pypi]
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write  # OIDC trusted publishing — no NPM_TOKEN needed
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - uses: jetli/wasm-pack-action@v0.4.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+
+      - name: Upgrade npm for trusted publishing (requires >= 11.5.1)
+        run: npm install -g npm@latest
+
+      - name: Build wasm package
+        working-directory: gfold-wasm
+        run: wasm-pack build --release --target bundler --out-dir pkg
+
+      - name: Set package scope/name + repository
+        # The package name in pkg/package.json will be whatever wasm-pack
+        # derives from the crate name. We override it to the scoped name
+        # @samutoljamo/gfold to avoid conflicts with any existing "gfold" pkg.
+        # The repository URL must be present and match the source repo, or
+        # npm rejects the OIDC provenance bundle (E422 "repository.url is '').
+        working-directory: gfold-wasm/pkg
+        run: |
+          node -e "
+          const fs = require('fs');
+          const p = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+          p.name = '@samutoljamo/gfold';
+          p.repository = { type: 'git', url: 'git+https://github.com/samutoljamo/g-fold.git' };
+          fs.writeFileSync('package.json', JSON.stringify(p, null, 2));
+          "
+
+      - name: Publish to npm (OIDC trusted publishing)
+        # No token: npm >= 11.5.1 authenticates via the GitHub Actions OIDC
+        # token (id-token: write) against the trusted publisher configured on
+        # the @samutoljamo/gfold package, and attaches build provenance.
+        working-directory: gfold-wasm/pkg
+        run: npm publish --access public
+
+  # ---------------------------------------------------------------------------
+  # Job 4: Publish crates to crates.io
+  # Ordering: gfold-core first (gfold-cli depends on it), then gfold-cli.
+  # gfold-py and gfold-wasm are not published to crates.io (they ship as
+  # PyPI / npm packages respectively).
+  # ---------------------------------------------------------------------------
+  publish-crates:
+    name: Publish crates to crates.io
+    needs: [publish-pypi]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Publish gfold-core
+        working-directory: .
+        run: cargo publish -p gfold-core
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+
+      # crates.io needs a moment to index the newly published crate before
+      # the dependent can resolve it.
+      - name: Wait for crates.io to index gfold-core
+        run: sleep 60
+
+      - name: Publish gfold-cli
+        working-directory: .
+        run: cargo publish -p gfold-cli
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
