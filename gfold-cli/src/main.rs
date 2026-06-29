@@ -92,7 +92,7 @@ fn render_csv(t: &Trajectory) -> String {
 
 /// Render a 2x2 PNG overview of the solved trajectory.
 ///
-/// Panels (mirroring `generator/gfold/visualization.py`):
+/// Panels:
 ///   top-left    — side view: downrange (x) vs altitude (z)
 ///   top-right   — ground track: x vs y
 ///   bottom-left — velocity profile: total speed & vertical speed vs time

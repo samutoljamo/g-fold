@@ -6,11 +6,10 @@ Thank you for your interest in contributing to G-FOLD! This guide will help you 
 
 ### Prerequisites
 
-Before you begin, ensure you have the following installed(these are recommended versions):
-- Python 3.12
+Before you begin, ensure you have the following installed (these are recommended versions):
 - [Rust](https://www.rust-lang.org/tools/install)
-- [Eigen](https://github.com/oxfordcontrol/Clarabel.cpp#installation)
-- Tkinter (`sudo apt-get install python3.12-tk`)
+- Python 3.12 (only needed to run the CVXPY oracle in `gfold-fixtures`)
+- [uv](https://docs.astral.sh/uv/) (Python package manager, only needed for the oracle)
 
 ### Development Setup
 
@@ -18,11 +17,15 @@ Before you begin, ensure you have the following installed(these are recommended 
 2. Clone your fork:
    ```bash
    git clone https://github.com/YOUR_USERNAME/g-fold.git
-   cd g-fold/generator
+   cd g-fold
    ```
-3. Install the package in development mode(if needed):
+3. Build and test the Rust workspace:
    ```bash
-   pip install -e .
+   cargo test
+   ```
+4. Run the CVXPY oracle (optional, only needed to regenerate fixtures):
+   ```bash
+   cd gfold-fixtures && uv run pytest
    ```
 
 ## Making Contributions

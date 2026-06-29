@@ -1,4 +1,4 @@
-//! Config types mirroring generator/gfold/config.py.
+//! Config types for the G-FOLD problem (spacecraft, environment, solver horizon).
 
 #[cfg_attr(feature = "python", pyo3::pyclass(get_all, set_all, from_py_object))]
 #[cfg_attr(feature = "wasm", derive(tsify::Tsify))]
