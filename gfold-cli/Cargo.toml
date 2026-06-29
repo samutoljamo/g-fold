@@ -1,6 +1,6 @@
 [package]
 name = "gfold-cli"
-version = "0.3.1"
+version = "0.3.2"
 edition = "2021"
 description = "Command-line interface for the G-FOLD powered-descent guidance solver"
 license = "MIT"
@@ -11,7 +11,7 @@ name = "gfold"
 path = "src/main.rs"
 
 [dependencies]
-gfold-core = { path = "../gfold-core", version = "0.3.1" }
+gfold-core = { path = "../gfold-core", version = "0.3.2" }
 clap = { version = "4", features = ["derive"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
@@ -19,6 +19,6 @@ plotters = { version = "0.3", default-features = false, features = ["bitmap_back
 
 [dev-dependencies]
 assert_cmd = "2"
-gfold-core = { path = "../gfold-core", version = "0.3.1" }
+gfold-core = { path = "../gfold-core", version = "0.3.2" }
 serde_json = "1"
 tempfile = "3"
