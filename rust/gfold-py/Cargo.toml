@@ -1,6 +1,6 @@
 [package]
 name = "gfold-py"
-version = "0.3.0"
+version = "0.3.1"
 edition = "2021"
 
 [lib]
@@ -8,7 +8,7 @@ name = "_gfold"
 crate-type = ["cdylib"]
 
 [dependencies]
-gfold-core = { path = "../gfold-core", version = "0.3.0", features = ["python"] }
+gfold-core = { path = "../gfold-core", version = "0.3.1", features = ["python"] }
 pyo3 = { version = "0.29", features = ["extension-module", "abi3-py311"] }
 numpy = "0.29"
 ndarray = "0.17"

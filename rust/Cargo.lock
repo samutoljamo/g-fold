@@ -524,7 +524,7 @@ dependencies = [
 
 [[package]]
 name = "gfold-cli"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "assert_cmd",
  "clap",
@@ -537,7 +537,7 @@ dependencies = [
 
 [[package]]
 name = "gfold-core"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "approx",
  "clarabel",
@@ -551,7 +551,7 @@ dependencies = [
 
 [[package]]
 name = "gfold-py"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "gfold-core",
  "ndarray",
@@ -561,7 +561,7 @@ dependencies = [
 
 [[package]]
 name = "gfold-wasm"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "gfold-core",
  "serde-wasm-bindgen",
