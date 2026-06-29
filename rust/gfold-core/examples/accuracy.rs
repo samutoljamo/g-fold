@@ -71,6 +71,7 @@ fn main() {
     for &n in &[20usize, 30, 40, 50, 60, 80, 100, 150, 200, 400, 800] {
         let mut cfg = Config::default();
         cfg.solver.n = n;
+        cfg.solver.time_of_flight = Some(44.63);
         let traj = match solve(&cfg) {
             Ok(t) => t,
             Err(e) => { println!("{n:5}  solve failed: {e}"); continue; }

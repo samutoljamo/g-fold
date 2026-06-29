@@ -4,6 +4,7 @@
 #[cfg_attr(feature = "wasm", derive(tsify::Tsify))]
 #[cfg_attr(feature = "wasm", tsify(into_wasm_abi, from_wasm_abi))]
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(default)]
 pub struct Spacecraft {
     pub wet_mass: f64,
     pub fuel: f64,
@@ -41,6 +42,13 @@ impl Default for Spacecraft {
 impl Spacecraft {
     #[new]
     #[allow(clippy::too_many_arguments)]
+    #[pyo3(signature = (
+        wet_mass = 2000.0, fuel = 1700.0, real_max_thrust = 24000.0,
+        min_thrust_pct = 0.2, max_thrust_pct = 0.8, max_velocity = 1000.0,
+        initial_position = [450.0, -330.0, 2400.0], initial_velocity = [-40.0, 10.0, -10.0],
+        target_velocity = [0.0, 0.0, 0.0], target_position = [0.0, 0.0, 0.0],
+        fuel_consumption = 5e-4,
+    ))]
     fn new(
         wet_mass: f64, fuel: f64, real_max_thrust: f64,
         min_thrust_pct: f64, max_thrust_pct: f64, max_velocity: f64,
@@ -59,6 +67,7 @@ impl Spacecraft {
 #[cfg_attr(feature = "wasm", derive(tsify::Tsify))]
 #[cfg_attr(feature = "wasm", tsify(into_wasm_abi, from_wasm_abi))]
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(default)]
 pub struct Environment {
     pub gravity: [f64; 3],
     pub glide_slope_angle_deg: f64,
@@ -75,6 +84,7 @@ impl Default for Environment {
 #[pyo3::pymethods]
 impl Environment {
     #[new]
+    #[pyo3(signature = (gravity = [0.0, 0.0, -3.71], glide_slope_angle_deg = 0.0, max_angle_deg = 90.0))]
     fn new(gravity: [f64; 3], glide_slope_angle_deg: f64, max_angle_deg: f64) -> Self {
         Self { gravity, glide_slope_angle_deg, max_angle_deg }
     }
@@ -84,14 +94,21 @@ impl Environment {
 #[cfg_attr(feature = "wasm", derive(tsify::Tsify))]
 #[cfg_attr(feature = "wasm", tsify(into_wasm_abi, from_wasm_abi))]
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(default)]
 pub struct Solver {
     pub n: usize,
-    pub time_of_flight: f64,
+    /// Discretization horizon. `None` ⇒ `solve` searches for the fuel-optimal
+    /// time-of-flight (see [`crate::search`]).
+    pub time_of_flight: Option<f64>,
+    /// Lower bound for the time-of-flight search. `None` ⇒ auto-bracket.
+    pub tof_min: Option<f64>,
+    /// Upper bound for the time-of-flight search. `None` ⇒ auto-bracket.
+    pub tof_max: Option<f64>,
 }
 
 impl Default for Solver {
     fn default() -> Self {
-        Self { n: 100, time_of_flight: 44.63 }
+        Self { n: 100, time_of_flight: None, tof_min: None, tof_max: None }
     }
 }
 
@@ -99,8 +116,9 @@ impl Default for Solver {
 #[pyo3::pymethods]
 impl Solver {
     #[new]
-    fn new(n: usize, time_of_flight: f64) -> Self {
-        Self { n, time_of_flight }
+    #[pyo3(signature = (n = 100, time_of_flight = None, tof_min = None, tof_max = None))]
+    fn new(n: usize, time_of_flight: Option<f64>, tof_min: Option<f64>, tof_max: Option<f64>) -> Self {
+        Self { n, time_of_flight, tof_min, tof_max }
     }
 }
 
@@ -108,6 +126,7 @@ impl Solver {
 #[cfg_attr(feature = "wasm", derive(tsify::Tsify))]
 #[cfg_attr(feature = "wasm", tsify(into_wasm_abi, from_wasm_abi))]
 #[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
+#[serde(default)]
 pub struct Config {
     pub spacecraft: Spacecraft,
     pub environment: Environment,
@@ -121,15 +140,29 @@ impl Config {
     pub fn max_thrust(&self) -> f64 { self.spacecraft.real_max_thrust * self.spacecraft.max_thrust_pct }
     pub fn sin_glide_slope(&self) -> f64 { self.environment.glide_slope_angle_deg.to_radians().sin() }
     pub fn cos_max_angle(&self) -> f64 { self.environment.max_angle_deg.to_radians().cos() }
-    pub fn dt(&self) -> f64 { self.solver.time_of_flight / self.solver.n as f64 }
+    pub fn dt(&self) -> f64 {
+        self.solver.time_of_flight.expect("time_of_flight must be set before dt()") / self.solver.n as f64
+    }
 }
 
 #[cfg(feature = "python")]
 #[pyo3::pymethods]
 impl Config {
     #[new]
+    #[pyo3(signature = (spacecraft = Spacecraft::default(), environment = Environment::default(), solver = Solver::default()))]
     fn new(spacecraft: Spacecraft, environment: Environment, solver: Solver) -> Self {
         Self { spacecraft, environment, solver }
+    }
+
+    fn to_json(&self) -> pyo3::PyResult<String> {
+        serde_json::to_string_pretty(self)
+            .map_err(|e| pyo3::exceptions::PyValueError::new_err(e.to_string()))
+    }
+
+    #[staticmethod]
+    fn from_json(s: &str) -> pyo3::PyResult<Self> {
+        serde_json::from_str(s)
+            .map_err(|e| pyo3::exceptions::PyValueError::new_err(e.to_string()))
     }
 }
 
@@ -144,13 +177,24 @@ mod tests {
         assert_eq!(c.spacecraft.wet_mass, 2000.0);
         assert_eq!(c.spacecraft.fuel, 1700.0);
         assert_eq!(c.solver.n, 100);
-        assert_relative_eq!(c.solver.time_of_flight, 44.63);
+        assert!(c.solver.time_of_flight.is_none());
         assert_eq!(c.environment.gravity, [0.0, 0.0, -3.71]);
     }
 
     #[test]
+    fn partial_json_fills_defaults() {
+        let cfg: Config = serde_json::from_str(r#"{"spacecraft":{"wet_mass":1500.0}}"#).unwrap();
+        assert_eq!(cfg.spacecraft.wet_mass, 1500.0);
+        // untouched fields fall back to Spacecraft::default()
+        assert_eq!(cfg.spacecraft.fuel, 1700.0);
+        assert_eq!(cfg.environment.gravity, [0.0, 0.0, -3.71]);
+        assert_eq!(cfg.solver.n, 100);
+    }
+
+    #[test]
     fn derived_quantities() {
-        let c = Config::default();
+        let mut c = Config::default();
+        c.solver.time_of_flight = Some(44.63);
         assert_relative_eq!(c.log_wet_mass(), (2000.0_f64).ln());
         assert_relative_eq!(c.log_dry_mass(), (2000.0_f64 - 1700.0).ln());
         assert_relative_eq!(c.min_thrust(), 24000.0 * 0.2);

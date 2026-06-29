@@ -16,12 +16,15 @@ pub struct Trajectory {
     pub s_values: Vec<f64>,
     pub objective: f64,
     pub final_mass: f64,
+    pub time_of_flight: f64,
     pub time_points: Vec<f64>,
     pub status: String,
 }
 
-pub fn solve(cfg: &Config) -> Result<Trajectory, String> {
-    let prob = assemble(cfg);
+pub fn solve_fixed(cfg: &Config, tof: f64) -> Result<Trajectory, String> {
+    let mut cfg = cfg.clone();
+    cfg.solver.time_of_flight = Some(tof);
+    let prob = assemble(&cfg);
     let settings = DefaultSettings {
         verbose: false,
         ..DefaultSettings::default()
@@ -79,9 +82,17 @@ pub fn solve(cfg: &Config) -> Result<Trajectory, String> {
         s_values,
         objective: z_final,
         final_mass: z_final.exp(),
+        time_of_flight: tof,
         time_points,
         status: format!("{:?}", status),
     })
+}
+
+pub fn solve(cfg: &Config) -> Result<Trajectory, String> {
+    match cfg.solver.time_of_flight {
+        Some(t) => solve_fixed(cfg, t),
+        None => crate::search::search_tof(cfg).map(|(_, traj)| traj),
+    }
 }
 
 #[cfg(test)]
@@ -91,11 +102,29 @@ mod tests {
     use approx::assert_relative_eq;
 
     #[test]
+    fn trajectory_records_time_of_flight() {
+        let traj = solve_fixed(&Config::default(), 44.63).expect("solve");
+        assert_relative_eq!(traj.time_of_flight, 44.63);
+        assert_eq!(traj.time_points.len(), Config::default().solver.n);
+    }
+
+    #[test]
     fn trajectory_serializes_to_json() {
         let traj = solve(&Config::default()).expect("solve");
         let json = serde_json::to_string(&traj).expect("serialize");
         assert!(json.contains("\"positions\""));
         assert!(json.contains("\"final_mass\""));
+    }
+
+    #[test]
+    fn solve_searches_when_tof_none() {
+        let cfg = Config::default();
+        assert!(cfg.solver.time_of_flight.is_none());
+        let traj = solve(&cfg).expect("auto-solve");
+        let n = cfg.solver.n;
+        assert_relative_eq!(traj.positions[n - 1][0], 0.0, epsilon = 1e-2);
+        assert_relative_eq!(traj.positions[n - 1][2], 0.0, epsilon = 1e-2);
+        assert!(traj.time_of_flight > 0.0);
     }
 
     #[test]

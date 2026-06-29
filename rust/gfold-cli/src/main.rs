@@ -29,6 +29,12 @@ enum Cmd {
         #[arg(long, default_value_t = 1e-4)]
         tol: f64,
     },
+    /// Write a fully-populated default config (JSON) to edit.
+    Init {
+        /// Output path; omit to print to stdout.
+        #[arg(long, short)]
+        out: Option<std::path::PathBuf>,
+    },
 }
 
 fn read<T: serde::de::DeserializeOwned>(p: &std::path::Path) -> Result<T, String> {
@@ -61,6 +67,14 @@ fn run() -> Result<(), String> {
             let v = validate(&cfg, &traj, tol);
             if v.is_empty() { println!("valid"); Ok(()) }
             else { Err(format!("{} violation(s): {:?}", v.len(), v)) }
+        }
+        Cmd::Init { out } => {
+            let json = serde_json::to_string_pretty(&Config::default()).unwrap();
+            match out {
+                Some(p) => std::fs::write(&p, json).map_err(|e| format!("write: {e}"))?,
+                None => println!("{json}"),
+            }
+            Ok(())
         }
     }
 }

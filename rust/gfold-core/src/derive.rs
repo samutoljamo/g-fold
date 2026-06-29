@@ -41,7 +41,8 @@ mod tests {
 
     #[test]
     fn derive_matches_formula() {
-        let c = Config::default();
+        let mut c = Config::default();
+        c.solver.time_of_flight = Some(44.63);
         let d = derive(&c);
         let n = c.solver.n;
         assert_eq!(d.z0.len(), n);
