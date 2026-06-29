@@ -1,40 +1,86 @@
-# G-FOLD: Fuel Optimal Large Divert Guidance Algorithm
+# G-FOLD: Fuel-Optimal Powered-Descent Guidance
 
-This project implements the G-FOLD algorithm for spacecraft landing trajectory optimization based on:
+G-FOLD ("Guidance for Fuel-Optimal Large Diverts") computes the fuel-optimal
+powered-descent trajectory for a landing spacecraft. A Rust core
+(`gfold-core`) poses the min-fuel soft-landing problem as a second-order cone
+program and solves it directly with [Clarabel](https://clarabel.org), exposed
+through a CLI, Python bindings, and a WebAssembly module from the same engine.
+Correctness is guarded by a CVXPY reference oracle: CI differentially tests the
+Rust solver against the reference within a tolerance, so the fast path stays
+honest.
+
+This started as a high-school curiosity project built on cvxpy (with Clarabel
+as the backend) plus cvxpygen for C++ codegen. The Rust core replaces that
+Python + C++ stack with a single, simpler problem definition that is both
+faster for large horizons and trivial to bind into other languages. The
+original cvxpy implementation lives on as the reference oracle that keeps the
+new core correct.
+
+It is based on:
 - [Blackmore et al. "Minimum-Landing-Error Powered-Descent Guidance for Mars Landing Using Convex Optimization"](http://larsblackmore.com/iee_tcst13.pdf)
 - [Neal et al. "Fuel-Optimal Spacecraft Guidance for Landing in Planetary Pits"](https://www.ri.cmu.edu/pub_files/2016/4/Fuel-Optimal-Spacecraft-Guidance-for-Landing-in-Planetary-Pits-Neal-Bhasin.pdf)
 
-G-FOLD is a convex-optimization algorithm that generates the fuel-optimal path to land a spacecraft at the desired location.
+## Install
 
-![graph](examples/gfold_plot.png)
+1. **Prebuilt CLI (recommended)** — shell installer:
+   ```sh
+   curl --proto '=https' --tlsv1.2 -LsSf https://github.com/samutoljamo/g-fold/releases/latest/download/gfold-cli-installer.sh | sh
+   ```
+2. **From crates.io** (any Rust platform):
+   ```sh
+   cargo install gfold-cli
+   ```
+3. **Python library**:
+   ```sh
+   pip install gfold
+   ```
+4. **WebAssembly / npm**:
+   ```sh
+   npm install @samutoljamo/gfold
+   ```
 
-## Project Structure
+## Usage
 
-This repository is organized into language-specific implementations:
+### CLI
 
-- `generator/` - Python package that implements G-FOLD and generates C/C++ code using CVXPYGen
-- `rust/gfold-core/` - Rust implementation solving the SOCP directly with Clarabel ([README](rust/gfold-core/README.md))
+```sh
+# generate a default config to edit
+gfold init -o config.json
 
-## Getting Started
+# solve and render a trajectory plot
+gfold solve config.json --plot plot.png
+```
 
-Choose the implementation that best fits your needs:
+![G-FOLD trajectory](examples/gfold_plot.png)
 
-- For Python usage or code generation, see [Generator README](generator/README.md)
-- For the Rust solver, see [gfold-core README](rust/gfold-core/README.md)
+*Produced by the `solve` command above using the default config in
+[`examples/landing.json`](examples/landing.json).* By default `time_of_flight`
+is `null`, so the solver searches for the fuel-optimal time of flight; set it to
+a number to pin a fixed value.
 
-## Platform Support
-By default, all tools work on Windows, macOS and Linux. However, c++ code generation feature will not support windows, but the bindings that use the generated code will run on windows too.
+### Python
+
+```python
+import gfold
+
+cfg = gfold.Config()          # sensible defaults; time_of_flight searched
+traj = gfold.solve(cfg)
+print(traj.final_mass, traj.time_of_flight)
+```
+
+## Repository layout
+
+- `gfold-core` — solver core (Clarabel SOCP)
+- `gfold-cli` — `gfold` command-line tool
+- `gfold-py` — Python bindings (PyPI [`gfold`](https://pypi.org/project/gfold/))
+- `gfold-wasm` — WebAssembly bindings (npm `@samutoljamo/gfold`)
+- `gfold-fixtures` — CVXPY reference oracle + differential tests
 
 ## Development
 
-To set up the development environment:
+See [CONTRIBUTING.md](CONTRIBUTING.md) for build, test, and contribution
+instructions.
 
-```bash
-git clone https://github.com/samutoljamo/g-fold.git
-cd g-fold
-```
+## License
 
-Then follow the instructions in the specific package directory you want to work with.
-
-## The direction of this project
-I originally did this project during high school out of pure curiosity. For the longest time, I wanted to make this better, but I did not find the time to do it. The mathematics are not trivial nor is the stack simple. It was based on cvxpy with the Clarabel as the backend and cvxpygen for generating the c++ code. To solve both issues, this is now mostly "vibe-coded". The python dependency + c++ generator was replaced with a rust based core that uses Clarabel directly. This has lots of benefits as the even though the solver and the problem is the same, AI was actually able to generate a simpler problem for Clarabel than what cvxpy originally created. This makes sense as cvxpy is the general tool, but our problem is very specific. What we also get for free is that now doing bindings for other languages is much more simpler. The drawback of this approach is that the modelling is now much more harder to understand than it was using the nice modelling language that cvxpy provides, but with AI ergonomics are a non-issue as long as it does not get so complicated that AI would have trouble *and* we can ensure correctness. This is done keeping the cvxpy implementation as a reference implementation: there are automated tests that make sure using various cases that both the rust-core and cvxpy implementation yield the same results within a defined tolerance. The implementation ended being quite fast even without fixing the problem / allowing subsequent solves to only update parameters. It's definitely much faster than the python implementation, but of course, the cvxpygen generated c++ and rust implementation will not have major difference as most of the job is done by Clarabel in both implementations. Although, as mentioned before, the simpler problem definition helps for larger `n` values. I hope you like this :)
+Licensed under the MIT License. See [LICENSE](LICENSE) for details.

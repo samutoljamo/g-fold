@@ -13,7 +13,7 @@ fixtures `gfold-core`'s tests check against.
 ## Generate fixtures and run the differential test
 
 ```bash
-cd rust/gfold-fixtures
+cd gfold-fixtures
 uv run python -m gfold_oracle.dump      # cases/ -> data/
 cd .. && cargo test -p gfold-core --test fixtures
 ```

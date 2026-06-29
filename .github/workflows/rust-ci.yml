@@ -6,9 +6,6 @@ on:
 jobs:
   rust:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: rust
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -27,7 +24,7 @@ jobs:
           python-version: "3.11"
       - uses: astral-sh/setup-uv@v5
       - name: Build + test the wheel
-        working-directory: rust/gfold-py
+        working-directory: gfold-py
         run: |
           uv venv
           uv pip install maturin pytest numpy
@@ -46,7 +43,7 @@ jobs:
         with:
           node-version: 20
       - name: Build wasm, type-check + run the TypeScript smoke test
-        working-directory: rust/gfold-wasm
+        working-directory: gfold-wasm
         run: |
           wasm-pack build --target nodejs --out-dir pkg
           npm install
