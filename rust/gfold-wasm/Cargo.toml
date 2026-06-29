@@ -2,6 +2,7 @@
 name = "gfold-wasm"
 version = "0.3.0"
 edition = "2021"
+repository = "https://github.com/samutoljamo/g-fold"
 
 [lib]
 crate-type = ["cdylib"]

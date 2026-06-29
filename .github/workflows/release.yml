@@ -209,16 +209,19 @@ jobs:
         working-directory: rust/gfold-wasm
         run: wasm-pack build --release --target bundler --out-dir pkg
 
-      - name: Set package scope/name
+      - name: Set package scope/name + repository
         # The package name in pkg/package.json will be whatever wasm-pack
         # derives from the crate name. We override it to the scoped name
         # @samutoljamo/gfold to avoid conflicts with any existing "gfold" pkg.
+        # The repository URL must be present and match the source repo, or
+        # npm rejects the OIDC provenance bundle (E422 "repository.url is '').
         working-directory: rust/gfold-wasm/pkg
         run: |
           node -e "
           const fs = require('fs');
           const p = JSON.parse(fs.readFileSync('package.json', 'utf8'));
           p.name = '@samutoljamo/gfold';
+          p.repository = { type: 'git', url: 'git+https://github.com/samutoljamo/g-fold.git' };
           fs.writeFileSync('package.json', JSON.stringify(p, null, 2));
           "
 
