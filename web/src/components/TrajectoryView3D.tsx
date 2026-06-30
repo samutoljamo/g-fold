@@ -11,35 +11,38 @@ interface Props {
 type Vec3 = [number, number, number];
 
 export default function TrajectoryView3D({ trajectory }: Props) {
-  // Solver frame is Z-up (z = altitude); three.js is Y-up. Swap z↔y so the
-  // descent reads as vertical on screen.
-  const points = useMemo<Vec3[]>(
-    () => buildPath3D(trajectory).map((p) => [p.x, p.z, p.y]),
-    [trajectory],
-  );
+  // Largest absolute coordinate sets the scene scale. Normalize so the whole
+  // trajectory lives in ~[-1,1]; this is the real flicker fix — a tight depth
+  // range (near 0.01 / far 100) instead of a 2000:1 range over kilometres.
+  const { points, scale } = useMemo(() => {
+    const raw = buildPath3D(trajectory);
+    const span = Math.max(...raw.flatMap((p) => [Math.abs(p.x), Math.abs(p.y), Math.abs(p.z)]), 1);
+    const s = 1 / span;
+    // Solver Z is up; three.js Y is up — swap z<->y, then scale to unit box.
+    const pts: Vec3[] = raw.map((p) => [p.x * s, p.z * s, p.y * s]);
+    return { points: pts, scale: s };
+  }, [trajectory]);
+
   const start = points[0];
   const end = points[points.length - 1];
-  // Scale camera distance to trajectory extent.
-  const span = Math.max(...points.flatMap((p) => p.map(Math.abs)), 1);
-
   if (!start || !end) return null;
 
   return (
-    <div className="view3d">
-      {/* near/far must scale with the trajectory: the camera sits ~1.7*span from
-          the origin and the grid reaches several span out, so the R3F default
-          far of 1000 would clip the entire scene for km-scale descents. */}
-      <Canvas camera={{ position: [span, span, span], fov: 50, near: span / 100, far: span * 20 }}>
+    <div className="h-72 md:h-[420px] rounded-lg overflow-hidden border border-slate-700 bg-slate-950">
+      <Canvas
+        camera={{ position: [1.8, 1.8, 1.8], fov: 50, near: 0.01, far: 100 }}
+        gl={{ antialias: true, logarithmicDepthBuffer: true }}
+      >
         <ambientLight intensity={0.8} />
-        <directionalLight position={[10, 20, 10]} />
-        <Grid args={[span * 4, span * 4]} cellSize={span / 5} infiniteGrid fadeDistance={span * 6} />
+        <directionalLight position={[5, 10, 5]} />
+        <Grid args={[4, 4]} cellSize={0.2} sectionSize={1} fadeDistance={8} cellColor="#334155" sectionColor="#475569" />
         <Line points={points} color="#3b82f6" lineWidth={2} />
         <mesh position={start}>
-          <sphereGeometry args={[span / 40, 16, 16]} />
+          <sphereGeometry args={[scale * 30, 16, 16]} />
           <meshStandardMaterial color="#10b981" />
         </mesh>
         <mesh position={end}>
-          <sphereGeometry args={[span / 40, 16, 16]} />
+          <sphereGeometry args={[scale * 30, 16, 16]} />
           <meshStandardMaterial color="#ef4444" />
         </mesh>
         <OrbitControls />
