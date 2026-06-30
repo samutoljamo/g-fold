@@ -29,6 +29,37 @@ function NumberField({
   );
 }
 
+// Standard gravity in the specific-impulse definition. By convention Isp(s) is
+// always referenced to this constant, NOT the local/planetary gravity.
+const G0 = 9.80665;
+
+// Edits specific impulse Isp (s) but stores the solver's mass-flow constant
+// α = fuel_consumption = 1/(Isp·g₀). Isp is the conventional, intuitive input.
+function IspField({
+  value, onChange,
+}: { value: number; onChange: (alpha: number) => void }) {
+  const isp = value > 0 ? 1 / (value * G0) : 0;
+  return (
+    <label className="flex flex-col gap-0.5 text-[13px] mb-2">
+      <span
+        title="Specific impulse. Sets the mass-flow constant α = 1/(Isp·g₀) using standard g₀ = 9.80665 m/s² (not the local gravity)."
+        className="font-mono text-[10px] tracking-widest uppercase text-slate-500 cursor-help decoration-dotted underline underline-offset-2"
+      >
+        Specific impulse (s)
+      </span>
+      <input
+        type="number"
+        value={Math.round(isp)}
+        onChange={(e) => {
+          const i = Number(e.target.value);
+          onChange(i > 0 ? 1 / (i * G0) : 0);
+        }}
+        className="px-1.5 py-1 border border-slate-300 rounded bg-white text-slate-800 focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400/40"
+      />
+    </label>
+  );
+}
+
 // Edits a fraction (0..1) but shows/accepts whole percent (0..100), so the label
 // "(%)" matches what the user types. The stored config value stays a fraction.
 function PercentField({
@@ -106,12 +137,7 @@ export default function ConfigForm({ config, onChange, onSolve, solving }: Props
         <PercentField label="Min thrust" value={sc.min_thrust_pct} onChange={(v) => setSc({ min_thrust_pct: v })} />
         <PercentField label="Max thrust" value={sc.max_thrust_pct} onChange={(v) => setSc({ max_thrust_pct: v })} />
         <NumberField label="Max velocity (m/s)" value={sc.max_velocity} onChange={(v) => setSc({ max_velocity: v })} />
-        <NumberField
-          label="Fuel use α (s/m)"
-          hint="Mass depletion per unit thrust: ṁ = α·‖T‖, with α = 1/(Isp·g₀). e.g. 5e-4 s/m ⇒ Isp·g₀ ≈ 2000 m/s (Isp ≈ 204 s)."
-          value={sc.fuel_consumption}
-          onChange={(v) => setSc({ fuel_consumption: v })}
-        />
+        <IspField value={sc.fuel_consumption} onChange={(a) => setSc({ fuel_consumption: a })} />
         <VectorField label="Initial position" value={sc.initial_position} onChange={(v) => setSc({ initial_position: v })} />
         <VectorField label="Initial velocity" value={sc.initial_velocity} onChange={(v) => setSc({ initial_velocity: v })} />
         <VectorField label="Target position" value={sc.target_position} onChange={(v) => setSc({ target_position: v })} />
