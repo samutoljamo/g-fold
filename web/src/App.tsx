@@ -64,7 +64,7 @@ export default function App() {
                 <StatsReadout trajectory={trajectory} config={config} t={playback.t} />
               </div>
             </div>
-            <ProfilePlots trajectory={trajectory} />
+            <ProfilePlots trajectory={trajectory} t={playback.t} />
           </>
         )}
       </main>
