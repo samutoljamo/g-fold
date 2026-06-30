@@ -7,26 +7,30 @@ interface Props {
 }
 
 const CHARTS: { key: "altitude" | "speed" | "thrustPct" | "mass"; label: string; color: string }[] = [
-  { key: "altitude", label: "Altitude (m)", color: "#3b82f6" },
-  { key: "speed", label: "Speed (m/s)", color: "#10b981" },
-  { key: "thrustPct", label: "Thrust (%)", color: "#f59e0b" },
-  { key: "mass", label: "Mass (kg)", color: "#ef4444" },
+  { key: "altitude", label: "Altitude (m)", color: "#f59e0b" },
+  { key: "speed", label: "Speed (m/s)", color: "#38bdf8" },
+  { key: "thrustPct", label: "Thrust (%)", color: "#a78bfa" },
+  { key: "mass", label: "Mass (kg)", color: "#34d399" },
 ];
 
 export default function ProfilePlots({ trajectory }: Props) {
   const data = buildProfiles(trajectory);
   return (
-    <div className="profile-plots">
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
       {CHARTS.map((c) => (
-        <div key={c.key} className="plot">
-          <h4>{c.label}</h4>
+        <div key={c.key} className="border border-slate-700 rounded-lg p-2 bg-slate-800">
+          <h4 className="m-0 mb-1 text-[13px] font-mono tracking-widest uppercase text-slate-400">{c.label}</h4>
           <ResponsiveContainer width="100%" height={160}>
             <LineChart data={data} margin={{ top: 8, right: 16, bottom: 8, left: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="t" tickFormatter={(v) => v.toFixed(0)} unit="s" />
-              <YAxis width={48} />
-              <Tooltip />
-              <Line type="monotone" dataKey={c.key} stroke={c.color} dot={false} isAnimationActive={false} />
+              <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+              <XAxis dataKey="t" tickFormatter={(v) => v.toFixed(0)} unit="s" stroke="#64748b" tick={{ fill: "#94a3b8", fontSize: 11 }} />
+              <YAxis width={48} stroke="#64748b" tick={{ fill: "#94a3b8", fontSize: 11 }} />
+              <Tooltip
+                contentStyle={{ backgroundColor: "#0f172a", border: "1px solid #334155", borderRadius: "6px", fontSize: "12px" }}
+                labelStyle={{ color: "#94a3b8" }}
+                itemStyle={{ color: c.color }}
+              />
+              <Line type="monotone" dataKey={c.key} stroke={c.color} dot={false} isAnimationActive={false} strokeWidth={1.5} />
             </LineChart>
           </ResponsiveContainer>
         </div>

@@ -12,12 +12,13 @@ function NumberField({
   label, value, onChange,
 }: { label: string; value: number; onChange: (v: number) => void }) {
   return (
-    <label className="field">
-      <span>{label}</span>
+    <label className="flex flex-col gap-0.5 text-[13px] mb-2">
+      <span className="font-mono text-[10px] tracking-widest uppercase text-slate-500">{label}</span>
       <input
         type="number"
         value={value}
         onChange={(e) => onChange(Number(e.target.value))}
+        className="px-1.5 py-1 border border-slate-300 rounded bg-white text-slate-800 focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400/40"
       />
     </label>
   );
@@ -27,9 +28,9 @@ function VectorField({
   label, value, onChange,
 }: { label: string; value: [number, number, number]; onChange: (v: [number, number, number]) => void }) {
   return (
-    <div className="field">
-      <span>{label}</span>
-      <div className="vec">
+    <div className="flex flex-col gap-0.5 text-[13px] mb-2">
+      <span className="font-mono text-[10px] tracking-widest uppercase text-slate-500">{label}</span>
+      <div className="grid grid-cols-3 gap-1">
         {value.map((c, i) => (
           <input
             key={i}
@@ -40,6 +41,7 @@ function VectorField({
               next[i] = Number(e.target.value);
               onChange(next);
             }}
+            className="px-1.5 py-1 border border-slate-300 rounded bg-white text-slate-800 focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400/40"
           />
         ))}
       </div>
@@ -59,12 +61,13 @@ export default function ConfigForm({ config, onChange, onSolve, solving }: Props
     onChange({ ...config, solver: { ...sv, ...patch } });
 
   return (
-    <form className="config-form" onSubmit={(e) => { e.preventDefault(); onSolve(); }}>
-      <label className="field">
-        <span>Preset</span>
+    <form className="flex flex-col gap-3" onSubmit={(e) => { e.preventDefault(); onSolve(); }}>
+      <label className="flex flex-col gap-0.5 text-[13px] mb-2">
+        <span className="font-mono text-[10px] tracking-widest uppercase text-slate-500">Preset</span>
         <select
           onChange={(e) => onChange(structuredClone(PRESETS[e.target.value]))}
           defaultValue={DEFAULT_PRESET}
+          className="px-1.5 py-1 border border-slate-300 rounded bg-white text-slate-800 focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400/40"
         >
           {Object.keys(PRESETS).map((name) => (
             <option key={name} value={name}>{name}</option>
@@ -72,8 +75,8 @@ export default function ConfigForm({ config, onChange, onSolve, solving }: Props
         </select>
       </label>
 
-      <fieldset>
-        <legend>Spacecraft</legend>
+      <fieldset className="border border-slate-200 rounded-lg p-2">
+        <legend className="font-mono text-[10px] tracking-widest uppercase text-slate-500 px-1.5">Spacecraft</legend>
         <NumberField label="Wet mass (kg)" value={sc.wet_mass} onChange={(v) => setSc({ wet_mass: v })} />
         <NumberField label="Fuel (kg)" value={sc.fuel} onChange={(v) => setSc({ fuel: v })} />
         <NumberField label="Max thrust (N)" value={sc.real_max_thrust} onChange={(v) => setSc({ real_max_thrust: v })} />
@@ -87,15 +90,15 @@ export default function ConfigForm({ config, onChange, onSolve, solving }: Props
         <VectorField label="Target velocity" value={sc.target_velocity} onChange={(v) => setSc({ target_velocity: v })} />
       </fieldset>
 
-      <fieldset>
-        <legend>Environment</legend>
+      <fieldset className="border border-slate-200 rounded-lg p-2">
+        <legend className="font-mono text-[10px] tracking-widest uppercase text-slate-500 px-1.5">Environment</legend>
         <VectorField label="Gravity (m/s²)" value={env.gravity} onChange={(v) => setEnv({ gravity: v })} />
         <NumberField label="Glide slope (deg)" value={env.glide_slope_angle_deg} onChange={(v) => setEnv({ glide_slope_angle_deg: v })} />
         <NumberField label="Max angle (deg)" value={env.max_angle_deg} onChange={(v) => setEnv({ max_angle_deg: v })} />
       </fieldset>
 
-      <fieldset>
-        <legend>Solver</legend>
+      <fieldset className="border border-slate-200 rounded-lg p-2">
+        <legend className="font-mono text-[10px] tracking-widest uppercase text-slate-500 px-1.5">Solver</legend>
         <NumberField label="Steps (n)" value={sv.n} onChange={(v) => setSv({ n: v })} />
         <NumberField
           label="Time of flight (0 = auto)"
@@ -104,7 +107,11 @@ export default function ConfigForm({ config, onChange, onSolve, solving }: Props
         />
       </fieldset>
 
-      <button type="submit" disabled={solving}>
+      <button
+        type="submit"
+        disabled={solving}
+        className="w-full py-2.5 rounded-md text-white text-[15px] font-semibold bg-amber-500 hover:bg-amber-400 disabled:bg-slate-400 disabled:cursor-default cursor-pointer transition-colors"
+      >
         {solving ? "Solving…" : "Solve"}
       </button>
     </form>

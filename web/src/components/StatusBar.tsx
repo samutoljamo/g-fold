@@ -7,17 +7,28 @@ interface Props {
 
 export default function StatusBar({ trajectory, error }: Props) {
   if (error) {
-    return <div className="status status-error">Solve failed: {error}</div>;
+    return (
+      <div className="px-3 py-2.5 rounded-md flex gap-4 flex-wrap text-sm bg-red-950 border border-red-700 text-red-300">
+        <span className="font-mono text-[10px] tracking-widest uppercase text-red-500 self-center">Error</span>
+        <span>{error}</span>
+      </div>
+    );
   }
   if (!trajectory) {
-    return <div className="status status-idle">Edit a config and press Solve.</div>;
+    return (
+      <div className="px-3 py-2.5 rounded-md flex gap-4 flex-wrap text-sm bg-slate-800 text-slate-400">
+        <span className="font-mono text-[10px] tracking-widest uppercase text-slate-600 self-center">Idle</span>
+        <span>Edit a config and press Solve.</span>
+      </div>
+    );
   }
   return (
-    <div className="status status-ok">
-      <span><strong>Status:</strong> {trajectory.status}</span>
-      <span><strong>Final mass:</strong> {trajectory.final_mass.toFixed(1)} kg</span>
-      <span><strong>Time of flight:</strong> {trajectory.time_of_flight.toFixed(2)} s</span>
-      <span><strong>Objective:</strong> {trajectory.objective.toFixed(2)}</span>
+    <div className="px-3 py-2.5 rounded-md flex gap-4 flex-wrap text-sm bg-amber-950 border border-amber-700 text-amber-100">
+      <span className="font-mono text-[10px] tracking-widest uppercase text-amber-500 self-center">Solved</span>
+      <span><span className="text-amber-400">Status</span> {trajectory.status}</span>
+      <span><span className="text-amber-400">Final mass</span> {trajectory.final_mass.toFixed(1)} kg</span>
+      <span><span className="text-amber-400">ToF</span> {trajectory.time_of_flight.toFixed(2)} s</span>
+      <span><span className="text-amber-400">Objective</span> {trajectory.objective.toFixed(2)}</span>
     </div>
   );
 }

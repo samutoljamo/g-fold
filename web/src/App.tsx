@@ -12,17 +12,13 @@ export default function App() {
   const { trajectory, error, solving, run } = useSolve();
 
   return (
-    <div className="layout">
-      <aside className="pane-left">
-        <h1>G-FOLD Playground</h1>
-        <ConfigForm
-          config={config}
-          onChange={setConfig}
-          onSolve={() => run(config)}
-          solving={solving}
-        />
+    <div className="grid grid-cols-1 md:grid-cols-[360px_1fr] md:h-screen">
+      <aside className="overflow-y-auto p-4 bg-slate-50 border-r border-slate-200">
+        <h1 className="font-mono text-[11px] tracking-[0.2em] uppercase text-slate-400 mb-0.5">G-FOLD</h1>
+        <p className="text-[13px] font-semibold text-slate-800 mb-4">Powered Descent Playground</p>
+        <ConfigForm config={config} onChange={setConfig} onSolve={() => run(config)} solving={solving} />
       </aside>
-      <main className="pane-right">
+      <main className="overflow-y-auto p-4 flex flex-col gap-4 bg-slate-900 text-slate-100">
         <StatusBar trajectory={trajectory} error={error} />
         {trajectory && (
           <>
