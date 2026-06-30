@@ -6,5 +6,7 @@ import react from "@vitejs/plugin-react";
 export default defineConfig({
   base: "/g-fold/",
   plugins: [react()],
-  test: { environment: "node", include: ["tests/**/*.test.ts"] },
+  // Pure-logic tests only (node env). Glob allows .tsx so component tests
+  // aren't silently skipped if added later (they'd need a jsdom env then).
+  test: { environment: "node", include: ["tests/**/*.test.{ts,tsx}"] },
 });

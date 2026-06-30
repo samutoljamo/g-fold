@@ -2,6 +2,7 @@
   "name": "gfold-web",
   "private": true,
   "type": "module",
+  "packageManager": "pnpm@10.22.0",
   "scripts": {
     "build:wasm": "wasm-pack build ../gfold-wasm --target web --out-dir ../web/src/wasm/pkg --release",
     "predev": "pnpm run build:wasm",
