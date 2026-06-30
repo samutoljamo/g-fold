@@ -9,15 +9,38 @@ interface Props {
 }
 
 function NumberField({
-  label, value, onChange,
-}: { label: string; value: number; onChange: (v: number) => void }) {
+  label, value, onChange, hint,
+}: { label: string; value: number; onChange: (v: number) => void; hint?: string }) {
   return (
     <label className="flex flex-col gap-0.5 text-[13px] mb-2">
-      <span className="font-mono text-[10px] tracking-widest uppercase text-slate-500">{label}</span>
+      <span
+        title={hint}
+        className={`font-mono text-[10px] tracking-widest uppercase text-slate-500${hint ? " cursor-help decoration-dotted underline underline-offset-2" : ""}`}
+      >
+        {label}
+      </span>
       <input
         type="number"
         value={value}
         onChange={(e) => onChange(Number(e.target.value))}
+        className="px-1.5 py-1 border border-slate-300 rounded bg-white text-slate-800 focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400/40"
+      />
+    </label>
+  );
+}
+
+// Edits a fraction (0..1) but shows/accepts whole percent (0..100), so the label
+// "(%)" matches what the user types. The stored config value stays a fraction.
+function PercentField({
+  label, value, onChange,
+}: { label: string; value: number; onChange: (fraction: number) => void }) {
+  return (
+    <label className="flex flex-col gap-0.5 text-[13px] mb-2">
+      <span className="font-mono text-[10px] tracking-widest uppercase text-slate-500">{label} (%)</span>
+      <input
+        type="number"
+        value={Math.round(value * 100)}
+        onChange={(e) => onChange(Number(e.target.value) / 100)}
         className="px-1.5 py-1 border border-slate-300 rounded bg-white text-slate-800 focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400/40"
       />
     </label>
@@ -80,10 +103,15 @@ export default function ConfigForm({ config, onChange, onSolve, solving }: Props
         <NumberField label="Wet mass (kg)" value={sc.wet_mass} onChange={(v) => setSc({ wet_mass: v })} />
         <NumberField label="Fuel (kg)" value={sc.fuel} onChange={(v) => setSc({ fuel: v })} />
         <NumberField label="Max thrust (N)" value={sc.real_max_thrust} onChange={(v) => setSc({ real_max_thrust: v })} />
-        <NumberField label="Min thrust %" value={sc.min_thrust_pct} onChange={(v) => setSc({ min_thrust_pct: v })} />
-        <NumberField label="Max thrust %" value={sc.max_thrust_pct} onChange={(v) => setSc({ max_thrust_pct: v })} />
+        <PercentField label="Min thrust" value={sc.min_thrust_pct} onChange={(v) => setSc({ min_thrust_pct: v })} />
+        <PercentField label="Max thrust" value={sc.max_thrust_pct} onChange={(v) => setSc({ max_thrust_pct: v })} />
         <NumberField label="Max velocity (m/s)" value={sc.max_velocity} onChange={(v) => setSc({ max_velocity: v })} />
-        <NumberField label="Fuel consumption" value={sc.fuel_consumption} onChange={(v) => setSc({ fuel_consumption: v })} />
+        <NumberField
+          label="Fuel use α (s/m)"
+          hint="Mass depletion per unit thrust: ṁ = α·‖T‖, with α = 1/(Isp·g₀). e.g. 5e-4 s/m ⇒ Isp·g₀ ≈ 2000 m/s (Isp ≈ 204 s)."
+          value={sc.fuel_consumption}
+          onChange={(v) => setSc({ fuel_consumption: v })}
+        />
         <VectorField label="Initial position" value={sc.initial_position} onChange={(v) => setSc({ initial_position: v })} />
         <VectorField label="Initial velocity" value={sc.initial_velocity} onChange={(v) => setSc({ initial_velocity: v })} />
         <VectorField label="Target position" value={sc.target_position} onChange={(v) => setSc({ target_position: v })} />
