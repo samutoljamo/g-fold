@@ -21,6 +21,8 @@ function norm(v: [number, number, number]): number {
 export function buildProfiles(traj: Trajectory): ProfileRow[] {
   return traj.time_points.map((t, i) => {
     const z = traj.z_values[i];
+    // Real solver output keeps every array the same length, so z is always
+    // present; the guard is defensive against truncated/synthetic trajectories.
     const mass = z !== undefined ? Math.exp(z) : traj.final_mass;
     return {
       t,
