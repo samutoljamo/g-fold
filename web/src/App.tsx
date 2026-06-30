@@ -1,5 +1,4 @@
 import { useState } from "react";
-import "./App.css";
 import type { AppConfig } from "./lib/config";
 import { PRESETS, DEFAULT_PRESET } from "./lib/presets";
 import { useSolve } from "./hooks/useSolve";
