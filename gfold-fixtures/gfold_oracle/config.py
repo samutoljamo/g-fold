@@ -71,5 +71,9 @@ class Config:
         return math.sin(math.radians(self.glide_slope_angle_deg))
 
     @property
+    def cos_max_angle(self) -> float:
+        return math.cos(math.radians(self.max_angle_deg))
+
+    @property
     def dt(self) -> float:
         return self.time_of_flight / self.n

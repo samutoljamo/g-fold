@@ -58,6 +58,10 @@ pub fn validate(cfg: &Config, traj: &Trajectory, tol: f64) -> Vec<Violation> {
     }
 
     // inequalities
+    let cos_max = cfg.cos_max_angle();
+    // A full half-sphere (max_angle >= 180°) is already implied by the
+    // thrust-slack cone (u_z >= -s), so only check pointing when it constrains.
+    let enforce_pointing = cfg.environment.max_angle_deg < 180.0;
     for i in 0..n {
         let gs = traj.positions[i][2] - sin * norm3(&traj.positions[i]);
         if gs < -tol { v.push(Violation { name: "glide_slope".into(), index: i, residual: -gs }); }
@@ -65,6 +69,11 @@ pub fn validate(cfg: &Config, traj: &Trajectory, tol: f64) -> Vec<Violation> {
         if vb < -tol { v.push(Violation { name: "max_velocity".into(), index: i, residual: -vb }); }
         let ts = traj.s_values[i] - norm3(&traj.u_values[i]);
         if ts < -tol { v.push(Violation { name: "thrust_slack".into(), index: i, residual: -ts }); }
+        // thrust pointing: n̂·u >= cos(max_angle)·s, with n̂ = +z (up).
+        if enforce_pointing {
+            let pa = traj.u_values[i][2] - cos_max * traj.s_values[i];
+            if pa < -tol { v.push(Violation { name: "max_angle".into(), index: i, residual: -pa }); }
+        }
     }
     let dry = traj.z_values[n-1] - cfg.log_dry_mass();
     if dry < -tol { v.push(Violation { name: "dry_mass".into(), index: n-1, residual: -dry }); }
@@ -104,5 +113,50 @@ mod tests {
         let traj = solve(&cfg).unwrap();
         let v = validate(&cfg, &traj, 1e-4);
         assert!(v.is_empty(), "violations: {:?}", v);
+    }
+
+    #[test]
+    fn thrust_respects_max_angle() {
+        // Regression: the default max_angle (90°) confines thrust to the upper
+        // hemisphere (u_z >= 0). Before the pointing constraint was assembled,
+        // the fuel-optimal divert thrust ~44° below horizontal early on
+        // (u_z < 0) — this guards against that returning.
+        let cfg = Config::default();
+        assert_eq!(cfg.environment.max_angle_deg, 90.0);
+        let traj = solve(&cfg).unwrap();
+        for (i, u) in traj.u_values.iter().enumerate() {
+            assert!(u[2] >= -1e-4, "node {i}: thrust below horizon, u_z = {}", u[2]);
+        }
+    }
+
+    #[test]
+    fn pointing_can_make_a_descent_infeasible() {
+        // Weak (lunar) gravity + a fixed 44.63 s horizon: the vehicle must drop
+        // 2400 m, more than free-fall covers in time, so the unconstrained
+        // optimum thrusts downward early. A 90° cone (u_z >= 0) forbids that,
+        // so the problem becomes genuinely infeasible — the constraint bites.
+        let mut cfg = Config::default();
+        cfg.environment.gravity = [0.0, 0.0, -1.62];
+        cfg.solver.time_of_flight = Some(44.63);
+        cfg.environment.max_angle_deg = 90.0;
+        assert!(solve(&cfg).is_err(), "expected pointing-induced infeasibility");
+    }
+
+    #[test]
+    fn tight_max_angle_is_feasible_and_binding() {
+        // A 60° cone is feasible for the default geometry and the constraint
+        // binds (some node sits on u_z = cos(60°)·s). Non-degenerate cos value.
+        let mut cfg = Config::default();
+        cfg.environment.max_angle_deg = 60.0;
+        let traj = solve(&cfg).unwrap();
+        assert!(validate(&cfg, &traj, 1e-4).is_empty());
+        let cos60 = 60f64.to_radians().cos();
+        let min_ratio = traj
+            .u_values
+            .iter()
+            .map(|u| u[2] / (u[0] * u[0] + u[1] * u[1] + u[2] * u[2]).sqrt().max(1e-12))
+            .fold(f64::INFINITY, f64::min);
+        assert!(min_ratio >= cos60 - 1e-3, "respects 60° cone");
+        assert!(min_ratio <= cos60 + 1e-2, "constraint is binding (active)");
     }
 }

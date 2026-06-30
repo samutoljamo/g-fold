@@ -35,10 +35,14 @@ def solve(cfg: Config) -> dict:
         z[0] == cfg.log_wet_mass,
     ]
     sin_gs = cfg.sin_glide_slope
+    cos_max = cfg.cos_max_angle
+    enforce_pointing = cfg.max_angle_deg < 180.0           # full sphere is vacuous
     for i in range(n):
         cons.append(cp.norm(x[i, 3:]) <= cfg.max_velocity)
         cons.append(x[i, 2] >= sin_gs * cp.norm(x[i, :3]))      # glide slope (>=0 when sin_gs==0)
         cons.append(cp.norm(u[i, :]) <= s[i])                   # thrust slack
+        if enforce_pointing:                                    # thrust pointing: <= max_angle from vertical
+            cons.append(u[i, 2] >= cos_max * s[i])
         cons.append(s[i] * max_exp[i] <= 1 - (z[i] - z0[i]))    # upper thrust bound
         if has_min:                                             # lower thrust bound
             cons.append(1 - (z[i] - z0[i]) + cp.square(z[i] - z0[i]) / 2 <= s[i] * min_exp[i])
@@ -57,7 +61,10 @@ def solve(cfg: Config) -> dict:
     ]
 
     prob = cp.Problem(cp.Maximize(z[n - 1]), cons)
-    prob.solve(solver=cp.CLARABEL)
+    # Match the Rust core's accuracy so the oracle isn't the looser solver when
+    # the pointing cone binds (the min-fuel optimum is flat, so an
+    # under-converged reference drifts from the implementation it gates).
+    prob.solve(solver=cp.CLARABEL, tol_gap_rel=1e-11, tol_feas=1e-11, max_iter=400)
     if prob.status not in ("optimal", "optimal_inaccurate"):
         raise RuntimeError(f"oracle solve failed: {prob.status}")
 
