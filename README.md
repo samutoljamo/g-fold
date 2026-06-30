@@ -1,5 +1,7 @@
 # G-FOLD: Fuel-Optimal Powered-Descent Guidance
 
+**🚀 [Try the interactive playground →](https://samutoljamo.github.io/g-fold/)** — edit a landing config and solve it live in your browser (runs the solver via WebAssembly, no install).
+
 G-FOLD ("Guidance for Fuel-Optimal Large Diverts") computes the fuel-optimal
 powered-descent trajectory for a landing spacecraft. A Rust core
 (`gfold-core`) poses the min-fuel soft-landing problem as a second-order cone

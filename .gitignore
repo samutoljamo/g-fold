@@ -145,3 +145,8 @@ cython_debug/
 
 .vscode/
 
+# The web/ playground is a Node app. Don't let the Python packaging rules above
+# (notably `lib/`) swallow its source tree; build output stays ignored via
+# web/.gitignore (dist, node_modules, src/wasm/pkg).
+!web/src/lib/
+
