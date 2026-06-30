@@ -3,14 +3,16 @@ import { OrbitControls, Line, Grid } from "@react-three/drei";
 import { useMemo } from "react";
 import type { Trajectory } from "../wasm/init";
 import { buildPath3D } from "../lib/plotData";
+import Rocket from "./Rocket";
 
 interface Props {
   trajectory: Trajectory;
+  tRef: React.MutableRefObject<number>;
 }
 
 type Vec3 = [number, number, number];
 
-export default function TrajectoryView3D({ trajectory }: Props) {
+export default function TrajectoryView3D({ trajectory, tRef }: Props) {
   // Largest absolute coordinate sets the scene scale. Normalize so the whole
   // trajectory lives in ~[-1,1]; this is the real flicker fix — a tight depth
   // range (near 0.01 / far 100) instead of a 2000:1 range over kilometres.
@@ -37,6 +39,7 @@ export default function TrajectoryView3D({ trajectory }: Props) {
         <directionalLight position={[5, 10, 5]} />
         <Grid args={[4, 4]} cellSize={0.2} sectionSize={1} fadeDistance={8} cellColor="#334155" sectionColor="#475569" />
         <Line points={points} color="#3b82f6" lineWidth={2} />
+        <Rocket trajectory={trajectory} scale={scale} tRef={tRef} />
         <mesh position={start}>
           <sphereGeometry args={[scale * 30, 16, 16]} />
           <meshStandardMaterial color="#10b981" />

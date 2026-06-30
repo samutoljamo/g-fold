@@ -2,14 +2,18 @@ import { useState } from "react";
 import type { AppConfig } from "./lib/config";
 import { PRESETS, DEFAULT_PRESET } from "./lib/presets";
 import { useSolve } from "./hooks/useSolve";
+import { usePlayback } from "./hooks/usePlayback";
 import ConfigForm from "./components/ConfigForm";
 import StatusBar from "./components/StatusBar";
 import ProfilePlots from "./components/ProfilePlots";
 import TrajectoryView3D from "./components/TrajectoryView3D";
+import TransportControls from "./components/TransportControls";
+import StatsReadout from "./components/StatsReadout";
 
 export default function App() {
   const [config, setConfig] = useState<AppConfig>(() => structuredClone(PRESETS[DEFAULT_PRESET]));
   const { trajectory, error, solving, run } = useSolve();
+  const playback = usePlayback(trajectory?.time_of_flight ?? 0);
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-[360px_1fr] md:h-screen">
@@ -22,7 +26,9 @@ export default function App() {
         <StatusBar trajectory={trajectory} error={error} />
         {trajectory && (
           <>
-            <TrajectoryView3D trajectory={trajectory} />
+            <TrajectoryView3D trajectory={trajectory} tRef={playback.tRef} />
+            <TransportControls playback={playback} />
+            <StatsReadout trajectory={trajectory} config={config} t={playback.t} />
             <ProfilePlots trajectory={trajectory} />
           </>
         )}
