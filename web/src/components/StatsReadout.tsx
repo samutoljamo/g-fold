@@ -15,7 +15,7 @@ interface Props {
 export default function StatsReadout({ trajectory, config, t }: Props) {
   const s = sampleFlightStats(trajectory, config, t);
   return (
-    <div className="rounded-lg border border-slate-700 bg-slate-800 p-3 flex flex-wrap items-center justify-around gap-3">
+    <div className="rounded-lg border border-slate-700 bg-slate-800 p-3 h-full flex flex-wrap content-start items-center justify-center gap-x-3 gap-y-4">
       <DigitalReadout label="Altitude" value={s.altitude.toFixed(0)} unit="m" big />
       <ArcGauge label="Speed" value={s.speed} min={0} max={Math.max(100, s.speed)} unit="m/s" />
       <DigitalReadout label="Descent" value={s.descentRate.toFixed(1)} unit="m/s" />

@@ -4,15 +4,22 @@ import { Group, Vector3, Quaternion } from "three";
 import type { Trajectory } from "../wasm/init";
 import { interpolateState } from "../lib/flightStats";
 
+// Minimal structural shape of an OrbitControls instance we drive for follow-cam.
+interface FollowControls {
+  target: Vector3;
+  update: () => void;
+}
+
 interface Props {
   trajectory: Trajectory;
   scale: number;            // scene normalization factor (1/span)
   tRef: React.MutableRefObject<number>;
+  controlsRef?: React.RefObject<FollowControls | null>;
 }
 
 const UP = new Vector3(0, 1, 0);
 
-export default function Rocket({ trajectory, scale, tRef }: Props) {
+export default function Rocket({ trajectory, scale, tRef, controlsRef }: Props) {
   const group = useRef<Group>(null);
   const plume = useRef<Group>(null);
   const tmpDir = useRef(new Vector3());
@@ -39,6 +46,13 @@ export default function Rocket({ trajectory, scale, tRef }: Props) {
       const throttle = s.throttlePct / 100;
       p.visible = throttle > 0.02;
       p.scale.setScalar(0.5 + throttle); // grows with throttle
+    }
+    // follow-cam: ease the orbit target toward the rocket so it stays centered
+    // while the user can still orbit/zoom freely around it.
+    const c = controlsRef?.current;
+    if (c) {
+      c.target.lerp(g.position, 0.1);
+      c.update();
     }
   });
 
