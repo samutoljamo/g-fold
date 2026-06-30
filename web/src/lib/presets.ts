@@ -1,15 +1,8 @@
-import type { Config, Spacecraft, Environment, Solver } from "../wasm/pkg/gfold_wasm";
-
-/** A preset is a Config with all top-level sections and their key fields present. */
-type Preset = Config & {
-  spacecraft: Required<Pick<Spacecraft, "wet_mass" | "fuel" | "initial_position">> & Spacecraft;
-  environment: Required<Pick<Environment, "gravity">> & Environment;
-  solver: Required<Pick<Solver, "n">> & Solver;
-};
+import type { AppConfig } from "./config";
 
 export const DEFAULT_PRESET = "Mars descent (default)";
 
-export const PRESETS: Record<string, Preset> = {
+export const PRESETS: Record<string, AppConfig> = {
   [DEFAULT_PRESET]: {
     spacecraft: {
       wet_mass: 2000,

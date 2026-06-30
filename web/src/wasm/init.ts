@@ -1,5 +1,5 @@
 import init, { solve } from "./pkg/gfold_wasm.js";
-import type { Config, Trajectory } from "./pkg/gfold_wasm.js";
+import type { Config, Trajectory, Spacecraft, Environment, Solver } from "./pkg/gfold_wasm.js";
 
 let ready: Promise<void> | null = null;
 
@@ -10,4 +10,4 @@ export function ensureWasm(): Promise<void> {
 }
 
 export { solve };
-export type { Config, Trajectory };
+export type { Config, Trajectory, Spacecraft, Environment, Solver };
