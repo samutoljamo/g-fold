@@ -24,10 +24,15 @@ export default function Rocket({ trajectory, scale, tRef }: Props) {
     const s = interpolateState(trajectory, tRef.current);
     // position: solver Z-up -> three Y-up, scaled to unit scene
     g.position.set(s.position[0] * scale, s.position[2] * scale, s.position[1] * scale);
-    // orient body +Y along thrust direction (also remapped z<->y)
-    tmpDir.current.set(s.thrustDir[0], s.thrustDir[2], s.thrustDir[1]).normalize();
-    tmpQuat.current.setFromUnitVectors(UP, tmpDir.current);
-    g.quaternion.copy(tmpQuat.current);
+    // orient body +Y along thrust direction (also remapped z<->y). Skip on a
+    // (near-)zero thrust vector — setFromUnitVectors on a zero vector yields a
+    // NaN quaternion; keep the last good orientation instead.
+    tmpDir.current.set(s.thrustDir[0], s.thrustDir[2], s.thrustDir[1]);
+    if (tmpDir.current.lengthSq() > 1e-10) {
+      tmpDir.current.normalize();
+      tmpQuat.current.setFromUnitVectors(UP, tmpDir.current);
+      g.quaternion.copy(tmpQuat.current);
+    }
     // plume length/visibility from throttle
     const p = plume.current;
     if (p) {
