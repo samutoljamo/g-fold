@@ -52,6 +52,7 @@ pub fn assemble(cfg: &Config) -> Problem {
     let eq = equality_rows(cfg, &der);
     let (gs_soc, gs_nn) = glide_slope(cfg);
     let nn = nonneg_bounds(cfg, &der);
+    let point = pointing_nonneg(cfg);
     let vel = velocity_soc(cfg);
     let tslack = thrust_slack_soc(cfg);
     let tlow = thrust_lower_soc(cfg, &der);
@@ -63,11 +64,12 @@ pub fn assemble(cfg: &Config) -> Problem {
     cones.push(ZeroConeT(eq.len()));
     rows.extend(eq);
 
-    // 2. nonnegatives (glide-slope-zero rows then thrust-upper+dry-mass)
-    let nn_count = gs_nn.len() + nn.len();
+    // 2. nonnegatives (glide-slope-zero, thrust-upper+dry-mass, thrust pointing)
+    let nn_count = gs_nn.len() + nn.len() + point.len();
     cones.push(NonnegativeConeT(nn_count));
     rows.extend(gs_nn);
     rows.extend(nn);
+    rows.extend(point);
 
     // 3. SOC blocks
     for blk in vel.into_iter().chain(tslack).chain(gs_soc).chain(tlow) {
@@ -273,6 +275,22 @@ pub fn nonneg_bounds(cfg: &Config, der: &Derived) -> Vec<Row> {
     rows
 }
 
+/// Thrust-pointing constraint: the thrust must stay within `max_angle_deg` of
+/// vertical, i.e. n̂·u >= cos(θ)·s with n̂ = +z. As a nonnegative-cone row
+/// (`Σ aⱼxⱼ <= b`): `cos(θ)·s[i] - u[i,2] <= 0`. Returns no rows for a full
+/// half-sphere (θ >= 180°), which the thrust-slack cone already implies.
+pub fn pointing_nonneg(cfg: &Config) -> Vec<Row> {
+    if cfg.environment.max_angle_deg >= 180.0 {
+        return Vec::new();
+    }
+    let n = cfg.solver.n;
+    let l = Layout { n };
+    let cos = cfg.cos_max_angle();
+    (0..n)
+        .map(|i| Row { coeffs: vec![(l.s(i), cos), (l.u(i, 2), -1.0)], b: 0.0 })
+        .collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -380,6 +398,21 @@ mod tests {
         let mut p = vec![0.0; l.nvars()];
         p[l.x(0,2)] = 7.0;
         assert_relative_eq!(nn[0].b - eval_row(&nn[0], &p), 7.0, epsilon=1e-12);
+    }
+
+    #[test]
+    fn pointing_rows_present_below_180_absent_at_180() {
+        let mut cfg = Config::default(); // 90° -> constrained
+        let rows = pointing_nonneg(&cfg);
+        assert_eq!(rows.len(), cfg.solver.n);
+        // cos(90°)=0, so the row is `-u_z <= 0` i.e. u_z >= 0.
+        let l = Layout { n: cfg.solver.n };
+        let mut p = vec![0.0; l.nvars()];
+        p[l.u(0, 2)] = 4.0;
+        assert_relative_eq!(rows[0].b - eval_row(&rows[0], &p), 4.0, epsilon = 1e-12);
+        // full half-sphere -> no rows (implied by the thrust-slack cone)
+        cfg.environment.max_angle_deg = 180.0;
+        assert!(pointing_nonneg(&cfg).is_empty());
     }
 
     #[test]
