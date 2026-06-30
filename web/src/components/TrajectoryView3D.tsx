@@ -11,6 +11,8 @@ interface Props {
 type Vec3 = [number, number, number];
 
 export default function TrajectoryView3D({ trajectory }: Props) {
+  // Solver frame is Z-up (z = altitude); three.js is Y-up. Swap z↔y so the
+  // descent reads as vertical on screen.
   const points = useMemo<Vec3[]>(
     () => buildPath3D(trajectory).map((p) => [p.x, p.z, p.y]),
     [trajectory],

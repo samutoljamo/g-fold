@@ -16,5 +16,7 @@ import type { Spacecraft, Environment, Solver } from "../wasm/init";
 export type AppConfig = {
   spacecraft: Required<Spacecraft>;
   environment: Required<Environment>;
-  solver: { n: number } & Pick<Solver, "time_of_flight" | "tof_min" | "tof_max">;
+  // Only the fields the form controls. tof_min/tof_max stay unset (the solver
+  // auto-brackets the ToF search); add them here if the UI ever exposes them.
+  solver: { n: number } & Pick<Solver, "time_of_flight">;
 };
