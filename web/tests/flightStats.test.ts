@@ -1,6 +1,8 @@
 import { describe, it, expect } from "vitest";
 import { interpolateState } from "../src/lib/flightStats";
+import { sampleFlightStats } from "../src/lib/flightStats";
 import type { Trajectory } from "../src/wasm/init";
+import type { AppConfig } from "../src/lib/config";
 
 const traj: Trajectory = {
   positions: [[0, 0, 100], [0, 0, 50], [0, 0, 0]],
@@ -34,5 +36,40 @@ describe("interpolateState", () => {
     const s = interpolateState(traj, 0);
     const m = Math.hypot(...s.thrustDir);
     expect(m).toBeCloseTo(1);
+  });
+});
+
+const cfg = {
+  spacecraft: {
+    wet_mass: 2000, fuel: 1700, real_max_thrust: 24000, min_thrust_pct: 0.2,
+    max_thrust_pct: 0.8, max_velocity: 1000, initial_position: [0, 0, 100],
+    initial_velocity: [0, 0, -10], target_velocity: [0, 0, 0],
+    target_position: [30, 40, 0], fuel_consumption: 5e-4,
+  },
+  environment: { gravity: [0, 0, -3.71], glide_slope_angle_deg: 0, max_angle_deg: 90 },
+  solver: { n: 100 },
+} satisfies AppConfig;
+
+describe("sampleFlightStats", () => {
+  it("computes downrange to the target (horizontal)", () => {
+    const s = sampleFlightStats(traj, cfg, 20); // pos [0,0,0], target [30,40,0]
+    expect(s.downrange).toBeCloseTo(50); // hypot(30,40)
+  });
+  it("computes descent rate as downward vertical speed", () => {
+    const s = sampleFlightStats(traj, cfg, 0); // v=[0,0,-10]
+    expect(s.descentRate).toBeCloseTo(10);
+  });
+  it("computes fuel remaining = mass - dry_mass (dry = wet - fuel)", () => {
+    const s = sampleFlightStats(traj, cfg, 20); // mass = 1800; dry = 300
+    expect(s.fuelRemaining).toBeCloseTo(1500);
+  });
+  it("gimbal angle is 0 when thrust is straight up", () => {
+    const s = sampleFlightStats(traj, cfg, 0); // u=[0,0,5] -> vertical
+    expect(s.gimbalDeg).toBeCloseTo(0);
+  });
+  it("altitude equals position z, thrustKN = thrustN/1000", () => {
+    const s = sampleFlightStats(traj, cfg, 0);
+    expect(s.altitude).toBeCloseTo(100);
+    expect(s.thrustKN).toBeCloseTo(10); // thrusts[0]=10000 N
   });
 });

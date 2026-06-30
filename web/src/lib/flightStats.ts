@@ -1,4 +1,5 @@
 import type { Trajectory } from "../wasm/init";
+import type { AppConfig } from "./config";
 
 export interface KinematicState {
   t: number;
@@ -41,5 +42,30 @@ export function interpolateState(traj: Trajectory, t: number): KinematicState {
     position, velocity, thrustDir,
     speed: Math.hypot(velocity[0], velocity[1], velocity[2]),
     throttlePct, thrustN, mass,
+  };
+}
+
+export interface FlightStats extends KinematicState {
+  altitude: number;
+  descentRate: number;
+  downrange: number;
+  thrustKN: number;
+  gimbalDeg: number;
+  fuelRemaining: number;
+}
+
+/** Full derived readout at time `t`, including config-relative quantities. */
+export function sampleFlightStats(traj: Trajectory, cfg: AppConfig, t: number): FlightStats {
+  const k = interpolateState(traj, t);
+  const target = cfg.spacecraft.target_position;
+  const dryMass = cfg.spacecraft.wet_mass - cfg.spacecraft.fuel;
+  return {
+    ...k,
+    altitude: k.position[2],
+    descentRate: -k.velocity[2],
+    downrange: Math.hypot(k.position[0] - target[0], k.position[1] - target[1]),
+    thrustKN: k.thrustN / 1000,
+    gimbalDeg: Math.acos(Math.min(1, Math.max(-1, k.thrustDir[2]))) * (180 / Math.PI),
+    fuelRemaining: k.mass - dryMass,
   };
 }
