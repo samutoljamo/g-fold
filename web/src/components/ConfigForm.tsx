@@ -9,14 +9,11 @@ interface Props {
 }
 
 function NumberField({
-  label, value, onChange, hint,
-}: { label: string; value: number; onChange: (v: number) => void; hint?: string }) {
+  label, value, onChange,
+}: { label: string; value: number; onChange: (v: number) => void }) {
   return (
     <label className="flex flex-col gap-0.5 text-[13px] mb-2">
-      <span
-        title={hint}
-        className={`font-mono text-[10px] tracking-widest uppercase text-slate-500${hint ? " cursor-help decoration-dotted underline underline-offset-2" : ""}`}
-      >
+      <span className="font-mono text-[10px] tracking-widest uppercase text-slate-500">
         {label}
       </span>
       <input
