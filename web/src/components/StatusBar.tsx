@@ -28,6 +28,14 @@ export default function StatusBar({ trajectory, error }: Props) {
       <span><span className="text-emerald-400">Status</span> {trajectory.status}</span>
       <span><span className="text-emerald-400">Final mass</span> {trajectory.final_mass.toFixed(1)} kg</span>
       <span><span className="text-emerald-400">ToF</span> {trajectory.time_of_flight.toFixed(2)} s</span>
+      {(trajectory.coast_duration ?? 0) > 0 && (
+        <span>
+          <span className="text-emerald-400">Coast</span>{" "}
+          {(trajectory.coast_duration ?? 0).toFixed(2)} s
+          <span className="text-emerald-400"> · Burn</span>{" "}
+          {(trajectory.time_of_flight - (trajectory.coast_duration ?? 0)).toFixed(2)} s
+        </span>
+      )}
       <span><span className="text-emerald-400">Objective</span> {trajectory.objective.toFixed(2)}</span>
     </div>
   );
