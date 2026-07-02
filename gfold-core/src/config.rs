@@ -104,11 +104,15 @@ pub struct Solver {
     pub tof_min: Option<f64>,
     /// Upper bound for the time-of-flight search. `None` ⇒ auto-bracket.
     pub tof_max: Option<f64>,
+    /// Allow an engine-off ballistic coast before ignition. Only takes effect
+    /// when `time_of_flight` is `None` (the search path): the solver then also
+    /// searches over the ignition time (see `search_coast`).
+    pub allow_coast: bool,
 }
 
 impl Default for Solver {
     fn default() -> Self {
-        Self { n: 100, time_of_flight: None, tof_min: None, tof_max: None }
+        Self { n: 100, time_of_flight: None, tof_min: None, tof_max: None, allow_coast: false }
     }
 }
 
@@ -116,9 +120,9 @@ impl Default for Solver {
 #[pyo3::pymethods]
 impl Solver {
     #[new]
-    #[pyo3(signature = (n = 100, time_of_flight = None, tof_min = None, tof_max = None))]
-    fn new(n: usize, time_of_flight: Option<f64>, tof_min: Option<f64>, tof_max: Option<f64>) -> Self {
-        Self { n, time_of_flight, tof_min, tof_max }
+    #[pyo3(signature = (n = 100, time_of_flight = None, tof_min = None, tof_max = None, allow_coast = false))]
+    fn new(n: usize, time_of_flight: Option<f64>, tof_min: Option<f64>, tof_max: Option<f64>, allow_coast: bool) -> Self {
+        Self { n, time_of_flight, tof_min, tof_max, allow_coast }
     }
 }
 
@@ -201,5 +205,15 @@ mod tests {
         assert_relative_eq!(c.max_thrust(), 24000.0 * 0.8);
         assert_relative_eq!(c.sin_glide_slope(), 0.0); // angle 0
         assert_relative_eq!(c.dt(), 44.63 / 100.0);
+    }
+
+    #[test]
+    fn allow_coast_defaults_false_and_parses() {
+        assert!(!Config::default().solver.allow_coast);
+        // old JSON without the field still deserializes to false
+        let cfg: Config = serde_json::from_str(r#"{"solver":{"n":50}}"#).unwrap();
+        assert!(!cfg.solver.allow_coast);
+        let cfg: Config = serde_json::from_str(r#"{"solver":{"allow_coast":true}}"#).unwrap();
+        assert!(cfg.solver.allow_coast);
     }
 }
