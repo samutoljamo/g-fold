@@ -50,6 +50,30 @@ export const PRESETS: Record<string, AppConfig> = {
     solver: { n: 100 },
   },
 
+  // The 24 kN Mars engine taken to the Moon — exactly the trap the "Moon
+  // landing" preset avoids: the 20% throttle floor (4800 N) exceeds lunar
+  // hover thrust (m·g = 3240 N), so a continuous burn cannot fly slow and the
+  // pure-burn optimum is unflyable. With the coast search enabled the vehicle
+  // falls ballistically (~18 s, engine off), ignites late, and flies the whole
+  // burn inside the 20-80% band: a true ballistic-then-burn suicide burn.
+  "Moon suicide burn (coast)": {
+    spacecraft: {
+      wet_mass: 2000,
+      fuel: 1700,
+      real_max_thrust: 24000,
+      min_thrust_pct: 0.2,
+      max_thrust_pct: 0.8,
+      max_velocity: 1000,
+      initial_position: [200, -150, 1500],
+      initial_velocity: [-20, 5, -5],
+      target_velocity: [0, 0, 0],
+      target_position: [0, 0, 0],
+      fuel_consumption: 5e-4,
+    },
+    environment: { gravity: [0, 0, -1.62], glide_slope_angle_deg: 0, max_angle_deg: 90 },
+    solver: { n: 100, allow_coast: true },
+  },
+
   // Earth gravity with a ~150 m/s descent from 3.5 km. The engine's minimum
   // throttle sits below hover thrust, so the craft cannot hover and must time a
   // single hard braking burn — the classic booster "hoverslam". Altitude is
