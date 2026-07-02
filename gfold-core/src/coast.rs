@@ -82,6 +82,8 @@ pub fn max_coast(cfg: &Config) -> f64 {
 /// Coast samples are spaced at roughly the burn `dt`; the burn's time base
 /// shifts by `t_c`.
 pub fn prepend_coast(cfg: &Config, t_c: f64, burn: &Trajectory) -> Trajectory {
+    debug_assert!(t_c > 0.0, "prepend_coast needs a positive coast duration; use the burn directly");
+    debug_assert!(!burn.positions.is_empty(), "prepend_coast: burn trajectory has no nodes");
     let n_burn = burn.positions.len();
     let dt_burn = burn.time_of_flight / n_burn as f64;
     let k = ((t_c / dt_burn).ceil() as usize).max(1);

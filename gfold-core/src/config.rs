@@ -106,7 +106,7 @@ pub struct Solver {
     pub tof_max: Option<f64>,
     /// Allow an engine-off ballistic coast before ignition. Only takes effect
     /// when `time_of_flight` is `None` (the search path): the solver then also
-    /// searches over the ignition time (see `search_coast`).
+    /// searches over the ignition time (see [`crate::search::search_coast`]).
     pub allow_coast: bool,
 }
 

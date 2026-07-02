@@ -94,9 +94,10 @@ pub fn solve_fixed(cfg: &Config, tof: f64) -> Result<Trajectory, String> {
 }
 
 pub fn solve(cfg: &Config) -> Result<Trajectory, String> {
-    match cfg.solver.time_of_flight {
-        Some(t) => solve_fixed(cfg, t),
-        None => crate::search::search_tof(cfg).map(|(_, traj)| traj),
+    match (cfg.solver.time_of_flight, cfg.solver.allow_coast) {
+        (Some(t), _) => solve_fixed(cfg, t),
+        (None, true) => crate::search::search_coast(cfg).map(|(_, traj)| traj),
+        (None, false) => crate::search::search_tof(cfg).map(|(_, traj)| traj),
     }
 }
 
@@ -141,6 +142,18 @@ mod tests {
         assert_relative_eq!(traj.positions[n - 1][0], 0.0, epsilon = 1e-2);
         assert_relative_eq!(traj.positions[n - 1][2], 0.0, epsilon = 1e-2);
         assert!(traj.time_of_flight > 0.0);
+    }
+
+    #[test]
+    fn solve_dispatches_to_coast_search() {
+        let mut cfg = Config::default();
+        cfg.spacecraft.initial_position = [200.0, -150.0, 1500.0];
+        cfg.spacecraft.initial_velocity = [-20.0, 5.0, -5.0];
+        cfg.environment.gravity = [0.0, 0.0, -1.62];
+        cfg.solver.n = 40;
+        cfg.solver.allow_coast = true;
+        let traj = solve(&cfg).expect("solve with coast");
+        assert!(traj.coast_duration > 0.0);
     }
 
     #[test]
