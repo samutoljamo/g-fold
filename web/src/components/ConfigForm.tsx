@@ -100,6 +100,27 @@ function VectorField({
   );
 }
 
+function CheckboxField({
+  label, checked, onChange, title,
+}: { label: string; checked: boolean; onChange: (v: boolean) => void; title?: string }) {
+  return (
+    <label className="flex items-center gap-2 text-[13px] mb-2 cursor-pointer">
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(e) => onChange(e.target.checked)}
+        className="accent-amber-500"
+      />
+      <span
+        title={title}
+        className={`font-mono text-[10px] tracking-widest uppercase text-slate-500${title ? " cursor-help decoration-dotted underline underline-offset-2" : ""}`}
+      >
+        {label}
+      </span>
+    </label>
+  );
+}
+
 export default function ConfigForm({ config, onChange, onSolve, solving }: Props) {
   const sc = config.spacecraft;
   const env = config.environment;
@@ -155,6 +176,12 @@ export default function ConfigForm({ config, onChange, onSolve, solving }: Props
           label="Time of flight (0 = auto)"
           value={sv.time_of_flight ?? 0}
           onChange={(v) => setSv({ time_of_flight: v > 0 ? v : undefined })}
+        />
+        <CheckboxField
+          label="Allow pre-ignition coast"
+          checked={sv.allow_coast ?? false}
+          onChange={(v) => setSv({ allow_coast: v })}
+          title="Search for the fuel-optimal engine-off ballistic arc before the burn (true suicide burn). Needs auto time of flight; the solve takes noticeably longer."
         />
       </fieldset>
 

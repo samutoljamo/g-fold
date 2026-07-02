@@ -12,7 +12,65 @@ pub struct Violation {
 
 fn norm3(v: &[f64; 3]) -> f64 { (v[0]*v[0] + v[1]*v[1] + v[2]*v[2]).sqrt() }
 
+/// Validate a trajectory. A coasted trajectory splits into an analytically
+/// checked ballistic prefix and a plain burn validated from the coast
+/// endpoint (so every existing check applies to the burn unchanged).
 pub fn validate(cfg: &Config, traj: &Trajectory, tol: f64) -> Vec<Violation> {
+    if traj.coast_duration <= 0.0 {
+        return validate_burn(cfg, traj, tol);
+    }
+    let t_c = traj.coast_duration;
+    // strict-less: nodes at exactly t_c belong to the burn (first burn node == coast endpoint)
+    let k = traj.time_points.iter().filter(|t| **t < t_c).count();
+    let sin = cfg.sin_glide_slope();
+    let mut v = Vec::new();
+    // coast nodes: exact ballistic states from the configured initial state,
+    // engine off, mass constant, state constraints still enforced
+    for i in 0..k {
+        let (r, vel) = crate::coast::propagate(cfg, traj.time_points[i]);
+        for c in 0..3 {
+            let dr = (traj.positions[i][c] - r[c]).abs();
+            if dr > tol { v.push(Violation { name: "coast_pos".into(), index: i, residual: dr }); }
+            let dv = (traj.velocities[i][c] - vel[c]).abs();
+            if dv > tol { v.push(Violation { name: "coast_vel".into(), index: i, residual: dv }); }
+        }
+        // mass is constant during coast at the original wet mass (coast_config leaves wet_mass untouched)
+        let dz = (traj.z_values[i] - cfg.log_wet_mass()).abs();
+        if dz > tol { v.push(Violation { name: "coast_mass".into(), index: i, residual: dz }); }
+        let off = norm3(&traj.u_values[i]);
+        if off > tol { v.push(Violation { name: "coast_thrust".into(), index: i, residual: off }); }
+        let gs = traj.positions[i][2] - sin * norm3(&traj.positions[i]);
+        if gs < -tol { v.push(Violation { name: "glide_slope".into(), index: i, residual: -gs }); }
+        let vb = cfg.spacecraft.max_velocity - norm3(&traj.velocities[i]);
+        if vb < -tol { v.push(Violation { name: "max_velocity".into(), index: i, residual: -vb }); }
+    }
+    // burn: slice off the coast and validate as a plain descent whose initial
+    // state is the coast endpoint
+    let burn_cfg = crate::coast::coast_config(cfg, t_c);
+    let burn = Trajectory {
+        positions: traj.positions[k..].to_vec(),
+        velocities: traj.velocities[k..].to_vec(),
+        thrusts: traj.thrusts[k..].to_vec(),
+        normalized_thrusts: traj.normalized_thrusts[k..].to_vec(),
+        z_values: traj.z_values[k..].to_vec(),
+        u_values: traj.u_values[k..].to_vec(),
+        s_values: traj.s_values[k..].to_vec(),
+        objective: traj.objective,
+        final_mass: traj.final_mass,
+        time_of_flight: traj.time_of_flight - t_c, // prepend_coast set total = t_c + burn_tof
+        time_points: traj.time_points[k..].iter().map(|t| t - t_c).collect(),
+        status: traj.status.clone(),
+        coast_duration: 0.0,
+    };
+    let mut bv = validate_burn(&burn_cfg, &burn, tol);
+    for viol in &mut bv {
+        viol.index += k; // report indices in the stitched trajectory's frame
+    }
+    v.append(&mut bv);
+    v
+}
+
+fn validate_burn(cfg: &Config, traj: &Trajectory, tol: f64) -> Vec<Violation> {
     let n = cfg.solver.n;
     // Derive against the trajectory's actual time-of-flight: the config may
     // have `time_of_flight: None` (search path), but the per-step log-mass
@@ -75,6 +133,27 @@ pub fn validate(cfg: &Config, traj: &Trajectory, tol: f64) -> Vec<Violation> {
             if pa < -tol { v.push(Violation { name: "max_angle".into(), index: i, residual: -pa }); }
         }
     }
+    // realized thrust bounds: the physical thrust is m·‖u‖ (mass times the
+    // acceleration that actually drives the dynamics), NOT s. The slack-based
+    // bounds above are necessary but not sufficient — lossless convexification
+    // only guarantees s = ‖u‖ at the optimum under conditions that fail when the
+    // minimum throttle exceeds local hover thrust. When it goes loose (s > ‖u‖),
+    // s satisfies the lower bound while m·‖u‖ falls below it: an unflyable
+    // command. Check the realized magnitude directly, normalized to real_max_thrust
+    // so the tolerance matches the other dimensionless thrust residuals.
+    let max_t = cfg.spacecraft.real_max_thrust;
+    let lo = cfg.spacecraft.min_thrust_pct;
+    let hi = cfg.spacecraft.max_thrust_pct;
+    for i in 0..n {
+        let realized = traj.z_values[i].exp() * norm3(&traj.u_values[i]) / max_t;
+        if lo - realized > tol {
+            v.push(Violation { name: "min_thrust_realized".into(), index: i, residual: lo - realized });
+        }
+        if realized - hi > tol {
+            v.push(Violation { name: "max_thrust_realized".into(), index: i, residual: realized - hi });
+        }
+    }
+
     let dry = traj.z_values[n-1] - cfg.log_dry_mass();
     if dry < -tol { v.push(Violation { name: "dry_mass".into(), index: n-1, residual: -dry }); }
 
@@ -116,6 +195,26 @@ mod tests {
     }
 
     #[test]
+    fn catches_realized_thrust_below_min() {
+        // Lunar regime where minimum throttle (0.2·24000 = 4800 N) exceeds local
+        // hover thrust (m·g = 2000·1.62 = 3240 N). The fuel-optimal solution wants
+        // to coast, but the min-thrust floor forbids it, so lossless convexification
+        // goes loose: the slack s sits on the 20% floor while the realized thrust
+        // m·‖u‖ dips far below it. The s-based bound checks miss this; the realized-
+        // thrust check must catch it.
+        let mut cfg = Config::default();
+        cfg.spacecraft.initial_position = [200.0, -150.0, 1500.0];
+        cfg.spacecraft.initial_velocity = [-20.0, 5.0, -5.0];
+        cfg.environment.gravity = [0.0, 0.0, -1.62];
+        let traj = solve(&cfg).unwrap();
+        let v = validate(&cfg, &traj, 1e-4);
+        assert!(
+            v.iter().any(|x| x.name == "min_thrust_realized"),
+            "expected a min_thrust_realized violation, got: {v:?}"
+        );
+    }
+
+    #[test]
     fn thrust_respects_max_angle() {
         // Regression: the default max_angle (90°) confines thrust to the upper
         // hemisphere (u_z >= 0). Before the pointing constraint was assembled,
@@ -143,13 +242,43 @@ mod tests {
     }
 
     #[test]
+    fn lunar_trap_coast_solution_is_physical() {
+        // Same trap as catches_realized_thrust_below_min, but with coast
+        // enabled the returned trajectory must validate: ballistic coast
+        // nodes, then a burn inside the throttle band (marginal LCvx
+        // looseness at most).
+        let mut cfg = Config::default();
+        cfg.spacecraft.initial_position = [200.0, -150.0, 1500.0];
+        cfg.spacecraft.initial_velocity = [-20.0, 5.0, -5.0];
+        cfg.environment.gravity = [0.0, 0.0, -1.62];
+        cfg.solver.n = 40;
+        cfg.solver.allow_coast = true;
+        let traj = solve(&cfg).unwrap();
+        assert!(traj.coast_duration > 0.0);
+        let v = validate(&cfg, &traj, 1e-4);
+        assert!(
+            v.iter().all(|x| x.name == "min_thrust_realized" && x.residual < 1e-2),
+            "coast solution should be physical (marginal looseness at most): {v:?}"
+        );
+    }
+
+    #[test]
     fn tight_max_angle_is_feasible_and_binding() {
         // A 60° cone is feasible for the default geometry and the constraint
         // binds (some node sits on u_z = cos(60°)·s). Non-degenerate cos value.
         let mut cfg = Config::default();
         cfg.environment.max_angle_deg = 60.0;
         let traj = solve(&cfg).unwrap();
-        assert!(validate(&cfg, &traj, 1e-4).is_empty());
+        // An active pointing cone makes lossless convexification slightly loose,
+        // so the realized thrust (m·‖u‖) can dip a hair below the min-thrust floor
+        // at the first node(s). That marginal looseness is the only thing validate
+        // should flag here — there must be no gross dynamics/boundary violations,
+        // and the dip is ~170× smaller than the lunar coast failure it guards.
+        let viol = validate(&cfg, &traj, 1e-4);
+        assert!(
+            viol.iter().all(|x| x.name == "min_thrust_realized" && x.residual < 1e-2),
+            "only marginal realized-thrust looseness expected, got: {viol:?}"
+        );
         let cos60 = 60f64.to_radians().cos();
         let min_ratio = traj
             .u_values

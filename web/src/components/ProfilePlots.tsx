@@ -18,6 +18,8 @@ const CHARTS: { key: "altitude" | "speed" | "thrustPct" | "mass"; label: string;
 export default function ProfilePlots({ trajectory, t }: Props) {
   const data = buildProfiles(trajectory);
   const cursor = interpolateProfile(data, t);
+  const coastDuration = trajectory.coast_duration ?? 0;
+  const ignition = coastDuration > 0 ? coastDuration : null;
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
       {CHARTS.map((c) => (
@@ -38,6 +40,15 @@ export default function ProfilePlots({ trajectory, t }: Props) {
                   direct children of LineChart — not wrapped in a Fragment. */}
               {cursor && <ReferenceLine x={cursor.t} stroke="#e2e8f0" strokeOpacity={0.6} strokeDasharray="2 2" />}
               {cursor && <ReferenceDot x={cursor.t} y={cursor[c.key]} r={3.5} fill={c.color} stroke="#0f172a" strokeWidth={1.5} isFront />}
+              {ignition !== null && (
+                <ReferenceLine
+                  x={ignition}
+                  stroke="#f59e0b"
+                  strokeOpacity={0.5}
+                  strokeDasharray="4 3"
+                  label={{ value: "ignition", fill: "#f59e0b", fontSize: 10, position: "insideTopRight" }}
+                />
+              )}
             </LineChart>
           </ResponsiveContainer>
         </div>

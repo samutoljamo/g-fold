@@ -25,9 +25,38 @@ export const PRESETS: Record<string, AppConfig> = {
     solver: { n: 100 },
   },
 
-  // Low gravity, generous thrust-to-weight: the gentlest scenario, useful as a
-  // first comparison against Mars (same craft, ~half a g of gravity).
+  // Low gravity, gentle descent. The engine is deliberately right-sized for the
+  // Moon (10 kN, ~3x lunar hover) rather than the Mars craft's 24 kN: at lunar
+  // gravity the 20% throttle floor of a 24 kN engine (4800 N) sits *above* hover
+  // thrust (m·g = 3240 N), so the fuel-optimal solution wants to coast but can't —
+  // a regime where the min-thrust convexification goes lossy and the recovered
+  // thrust dips below the floor. The 10 kN engine keeps the 20% floor (2000 N)
+  // below hover, so the full 20–80% throttle band is usable and respected.
   "Moon landing": {
+    spacecraft: {
+      wet_mass: 2000,
+      fuel: 1700,
+      real_max_thrust: 10000,
+      min_thrust_pct: 0.2,
+      max_thrust_pct: 0.8,
+      max_velocity: 1000,
+      initial_position: [200, -150, 1500],
+      initial_velocity: [-20, 5, -5],
+      target_velocity: [0, 0, 0],
+      target_position: [0, 0, 0],
+      fuel_consumption: 5e-4,
+    },
+    environment: { gravity: [0, 0, -1.62], glide_slope_angle_deg: 0, max_angle_deg: 90 },
+    solver: { n: 100 },
+  },
+
+  // The 24 kN Mars engine taken to the Moon — exactly the trap the "Moon
+  // landing" preset avoids: the 20% throttle floor (4800 N) exceeds lunar
+  // hover thrust (m·g = 3240 N), so a continuous burn cannot fly slow and the
+  // pure-burn optimum is unflyable. With the coast search enabled the vehicle
+  // falls ballistically (~18 s, engine off), ignites late, and flies the whole
+  // burn inside the 20-80% band: a true ballistic-then-burn suicide burn.
+  "Moon suicide burn (coast)": {
     spacecraft: {
       wet_mass: 2000,
       fuel: 1700,
@@ -42,7 +71,7 @@ export const PRESETS: Record<string, AppConfig> = {
       fuel_consumption: 5e-4,
     },
     environment: { gravity: [0, 0, -1.62], glide_slope_angle_deg: 0, max_angle_deg: 90 },
-    solver: { n: 100 },
+    solver: { n: 100, allow_coast: true },
   },
 
   // Earth gravity with a ~150 m/s descent from 3.5 km. The engine's minimum
@@ -134,12 +163,15 @@ export const PRESETS: Record<string, AppConfig> = {
 
   // Microgravity touchdown on a small body: gravity is ~1/700 of Earth's, so
   // the descent is almost ballistic and the burn is a gentle nudge that barely
-  // touches the fuel budget.
+  // touches the fuel budget. The thruster is sized at 80 N so its 20% floor
+  // (16 N) stays below hover thrust (m·g = 25 N) — otherwise the engine couldn't
+  // throttle low enough to coast and the min-thrust convexification would go
+  // lossy (the same trap the Moon preset avoids).
   "Asteroid touchdown (micro-g)": {
     spacecraft: {
       wet_mass: 500,
       fuel: 200,
-      real_max_thrust: 200,
+      real_max_thrust: 80,
       min_thrust_pct: 0.2,
       max_thrust_pct: 0.8,
       max_velocity: 50,

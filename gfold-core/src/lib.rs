@@ -27,4 +27,5 @@ pub mod derive;
 pub mod assemble;
 pub mod solve;
 pub mod search;
+pub mod coast;
 pub mod validate;

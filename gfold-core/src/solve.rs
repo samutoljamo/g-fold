@@ -18,6 +18,10 @@ pub struct Trajectory {
     pub final_mass: f64,
     pub time_of_flight: f64,
     pub time_points: Vec<f64>,
+    /// Engine-off ballistic coast prepended before ignition (seconds).
+    /// Zero for a pure burn. `time_of_flight` includes it.
+    #[serde(default)]
+    pub coast_duration: f64,
     pub status: String,
 }
 
@@ -84,14 +88,16 @@ pub fn solve_fixed(cfg: &Config, tof: f64) -> Result<Trajectory, String> {
         final_mass: z_final.exp(),
         time_of_flight: tof,
         time_points,
+        coast_duration: 0.0,
         status: format!("{:?}", status),
     })
 }
 
 pub fn solve(cfg: &Config) -> Result<Trajectory, String> {
-    match cfg.solver.time_of_flight {
-        Some(t) => solve_fixed(cfg, t),
-        None => crate::search::search_tof(cfg).map(|(_, traj)| traj),
+    match (cfg.solver.time_of_flight, cfg.solver.allow_coast) {
+        (Some(t), _) => solve_fixed(cfg, t),
+        (None, true) => crate::search::search_coast(cfg).map(|(_, traj)| traj),
+        (None, false) => crate::search::search_tof(cfg).map(|(_, traj)| traj),
     }
 }
 
@@ -117,6 +123,17 @@ mod tests {
     }
 
     #[test]
+    fn coast_duration_defaults_zero_and_tolerates_old_json() {
+        let traj = solve_fixed(&Config::default(), 44.63).expect("solve");
+        assert_eq!(traj.coast_duration, 0.0);
+        // JSON saved before the field existed still deserializes
+        let mut val: serde_json::Value = serde_json::to_value(&traj).unwrap();
+        val.as_object_mut().unwrap().remove("coast_duration");
+        let back: Trajectory = serde_json::from_value(val).unwrap();
+        assert_eq!(back.coast_duration, 0.0);
+    }
+
+    #[test]
     fn solve_searches_when_tof_none() {
         let cfg = Config::default();
         assert!(cfg.solver.time_of_flight.is_none());
@@ -125,6 +142,18 @@ mod tests {
         assert_relative_eq!(traj.positions[n - 1][0], 0.0, epsilon = 1e-2);
         assert_relative_eq!(traj.positions[n - 1][2], 0.0, epsilon = 1e-2);
         assert!(traj.time_of_flight > 0.0);
+    }
+
+    #[test]
+    fn solve_dispatches_to_coast_search() {
+        let mut cfg = Config::default();
+        cfg.spacecraft.initial_position = [200.0, -150.0, 1500.0];
+        cfg.spacecraft.initial_velocity = [-20.0, 5.0, -5.0];
+        cfg.environment.gravity = [0.0, 0.0, -1.62];
+        cfg.solver.n = 40;
+        cfg.solver.allow_coast = true;
+        let traj = solve(&cfg).expect("solve with coast");
+        assert!(traj.coast_duration > 0.0);
     }
 
     #[test]

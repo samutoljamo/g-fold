@@ -58,7 +58,10 @@ gfold solve config.json --plot plot.png
 *Produced by the `solve` command above using the default config in
 [`examples/landing.json`](examples/landing.json).* By default `time_of_flight`
 is `null`, so the solver searches for the fuel-optimal time of flight; set it to
-a number to pin a fixed value.
+a number to pin a fixed value. Set `"allow_coast": true` in the solver section to
+also search for a fuel-optimal engine-off ballistic coast before ignition — the
+right tool when the throttle floor exceeds hover thrust and a continuous burn
+can't fly slow (a true "suicide burn"); the solve runs ~10x longer.
 
 ### Python
 
