@@ -38,6 +38,8 @@ fn golden_max<F: FnMut(f64) -> Option<f64>>(mut f: F, mut a: f64, mut b: f64, it
 
 /// Coarse sweep + golden refine over [t_lo, t_hi]. Returns the best (tof,
 /// trajectory) by final mass, or None if every probe is infeasible.
+/// `samples` (>= 2) sets the coarse grid resolution and `golden_iters` the
+/// refinement fidelity.
 fn best_tof(
     cfg: &Config,
     t_lo: f64,
@@ -45,6 +47,7 @@ fn best_tof(
     samples: usize,
     golden_iters: usize,
 ) -> Option<(f64, Trajectory)> {
+    debug_assert!(samples >= 2, "best_tof needs at least 2 grid samples");
     let step = (t_hi - t_lo) / ((samples - 1) as f64);
     // Sweep the whole grid, keeping the best *grid index* by final mass.
     // Infeasible probes are skipped but their grid slots still define the
@@ -70,6 +73,9 @@ fn best_tof(
         hi,
         golden_iters,
     );
+    // A failure here (after a feasible sweep) is as good as infeasible for
+    // the search: drop the solver's error string and let the caller report
+    // its own range-level message.
     solve_fixed(cfg, best_t).ok().map(|tr| (best_t, tr))
 }
 
