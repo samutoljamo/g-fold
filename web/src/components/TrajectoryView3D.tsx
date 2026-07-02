@@ -16,19 +16,27 @@ export default function TrajectoryView3D({ trajectory, tRef }: Props) {
   // Largest absolute coordinate sets the scene scale. Normalize so the whole
   // trajectory lives in ~[-1,1]; this is the real flicker fix — a tight depth
   // range (near 0.01 / far 100) instead of a 2000:1 range over kilometres.
-  const { points, scale } = useMemo(() => {
+  const { coastPoints, burnPoints, scale } = useMemo(() => {
     const raw = buildPath3D(trajectory);
     const span = Math.max(...raw.flatMap((p) => [Math.abs(p.x), Math.abs(p.y), Math.abs(p.z)]), 1);
     const s = 1 / span;
     // Solver Z is up; three.js Y is up — swap z<->y, then scale to unit box.
     const pts: Vec3[] = raw.map((p) => [p.x * s, p.z * s, p.y * s]);
-    return { points: pts, scale: s };
+    const tc = trajectory.coast_duration ?? 0;
+    // first burn sample index; duplicate it into the coast line so the two
+    // polylines connect without a gap
+    const k = tc > 0 ? trajectory.time_points.filter((t) => t < tc).length : 0;
+    return {
+      coastPoints: k > 0 ? pts.slice(0, k + 1) : [],
+      burnPoints: pts.slice(k),
+      scale: s,
+    };
   }, [trajectory]);
 
   const controlsRef = useRef<React.ElementRef<typeof OrbitControls>>(null);
 
-  const start = points[0];
-  const end = points[points.length - 1];
+  const start = coastPoints[0] ?? burnPoints[0];
+  const end = burnPoints[burnPoints.length - 1];
   if (!start || !end) return null;
 
   return (
@@ -40,7 +48,10 @@ export default function TrajectoryView3D({ trajectory, tRef }: Props) {
         <ambientLight intensity={0.8} />
         <directionalLight position={[5, 10, 5]} />
         <Grid args={[4, 4]} cellSize={0.2} sectionSize={1} fadeDistance={8} cellColor="#334155" sectionColor="#475569" />
-        <Line points={points} color="#3b82f6" lineWidth={2} />
+        {coastPoints.length > 1 && (
+          <Line points={coastPoints} color="#94a3b8" lineWidth={1.5} dashed dashSize={0.03} gapSize={0.02} />
+        )}
+        <Line points={burnPoints} color="#3b82f6" lineWidth={2} />
         <Rocket trajectory={trajectory} scale={scale} tRef={tRef} controlsRef={controlsRef} />
         <mesh position={start}>
           <sphereGeometry args={[scale * 30, 16, 16]} />
