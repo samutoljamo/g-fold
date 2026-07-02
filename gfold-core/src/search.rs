@@ -36,14 +36,16 @@ fn golden_max<F: FnMut(f64) -> Option<f64>>(mut f: F, mut a: f64, mut b: f64, it
     if fc >= fd { (c, fc) } else { (d, fd) }
 }
 
-/// Search for the fuel-optimal time-of-flight and return (tof, trajectory).
-pub fn search_tof(cfg: &Config) -> Result<(f64, Trajectory), String> {
-    let (t_lo, t_hi) = match (cfg.solver.tof_min, cfg.solver.tof_max) {
-        (Some(lo), Some(hi)) => (lo, hi),
-        _ => auto_tof_bounds(cfg),
-    };
-    const SAMPLES: usize = 13;
-    let step = (t_hi - t_lo) / ((SAMPLES - 1) as f64);
+/// Coarse sweep + golden refine over [t_lo, t_hi]. Returns the best (tof,
+/// trajectory) by final mass, or None if every probe is infeasible.
+fn best_tof(
+    cfg: &Config,
+    t_lo: f64,
+    t_hi: f64,
+    samples: usize,
+    golden_iters: usize,
+) -> Option<(f64, Trajectory)> {
+    let step = (t_hi - t_lo) / ((samples - 1) as f64);
     // Sweep the whole grid, keeping the best *grid index* by final mass.
     // Infeasible probes are skipped but their grid slots still define the
     // bracket, so the refine can explore into a slot adjacent to the best
@@ -51,7 +53,7 @@ pub fn search_tof(cfg: &Config) -> Result<(f64, Trajectory), String> {
     // sits between the lowest feasible ToF and the infeasible short-flight
     // regime).
     let mut best: Option<(usize, f64)> = None; // (grid index, final_mass)
-    for i in 0..SAMPLES {
+    for i in 0..samples {
         let t = t_lo + step * (i as f64);
         if let Ok(tr) = solve_fixed(cfg, t) {
             if best.is_none_or(|(_, m)| tr.final_mass > m) {
@@ -59,19 +61,27 @@ pub fn search_tof(cfg: &Config) -> Result<(f64, Trajectory), String> {
             }
         }
     }
-    let bi = match best {
-        Some((i, _)) => i,
-        None => {
-            return Err(format!(
-                "infeasible: no feasible time-of-flight in [{t_lo:.3}, {t_hi:.3}]"
-            ))
-        }
-    };
+    let (bi, _) = best?;
     let lo = t_lo + step * (bi.saturating_sub(1) as f64);
-    let hi = t_lo + step * ((bi + 1).min(SAMPLES - 1) as f64);
-    let (best_t, _) = golden_max(|t| solve_fixed(cfg, t).ok().map(|tr| tr.final_mass), lo, hi, 20);
-    let traj = solve_fixed(cfg, best_t)?;
-    Ok((best_t, traj))
+    let hi = t_lo + step * ((bi + 1).min(samples - 1) as f64);
+    let (best_t, _) = golden_max(
+        |t| solve_fixed(cfg, t).ok().map(|tr| tr.final_mass),
+        lo,
+        hi,
+        golden_iters,
+    );
+    solve_fixed(cfg, best_t).ok().map(|tr| (best_t, tr))
+}
+
+/// Search for the fuel-optimal time-of-flight and return (tof, trajectory).
+pub fn search_tof(cfg: &Config) -> Result<(f64, Trajectory), String> {
+    let (t_lo, t_hi) = match (cfg.solver.tof_min, cfg.solver.tof_max) {
+        (Some(lo), Some(hi)) => (lo, hi),
+        _ => auto_tof_bounds(cfg),
+    };
+    best_tof(cfg, t_lo, t_hi, 13, 20).ok_or_else(|| {
+        format!("infeasible: no feasible time-of-flight in [{t_lo:.3}, {t_hi:.3}]")
+    })
 }
 
 #[cfg(test)]
