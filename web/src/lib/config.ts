@@ -18,5 +18,5 @@ export type AppConfig = {
   environment: Required<Environment>;
   // Only the fields the form controls. tof_min/tof_max stay unset (the solver
   // auto-brackets the ToF search); add them here if the UI ever exposes them.
-  solver: { n: number } & Pick<Solver, "time_of_flight">;
+  solver: { n: number } & Pick<Solver, "time_of_flight" | "allow_coast">;
 };
