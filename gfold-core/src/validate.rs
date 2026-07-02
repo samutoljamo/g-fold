@@ -12,7 +12,63 @@ pub struct Violation {
 
 fn norm3(v: &[f64; 3]) -> f64 { (v[0]*v[0] + v[1]*v[1] + v[2]*v[2]).sqrt() }
 
+/// Validate a trajectory. A coasted trajectory splits into an analytically
+/// checked ballistic prefix and a plain burn validated from the coast
+/// endpoint (so every existing check applies to the burn unchanged).
 pub fn validate(cfg: &Config, traj: &Trajectory, tol: f64) -> Vec<Violation> {
+    if traj.coast_duration <= 0.0 {
+        return validate_burn(cfg, traj, tol);
+    }
+    let t_c = traj.coast_duration;
+    let k = traj.time_points.iter().filter(|t| **t < t_c).count();
+    let sin = cfg.sin_glide_slope();
+    let mut v = Vec::new();
+    // coast nodes: exact ballistic states from the configured initial state,
+    // engine off, mass constant, state constraints still enforced
+    for i in 0..k {
+        let (r, vel) = crate::coast::propagate(cfg, traj.time_points[i]);
+        for c in 0..3 {
+            let dr = (traj.positions[i][c] - r[c]).abs();
+            if dr > tol { v.push(Violation { name: "coast_pos".into(), index: i, residual: dr }); }
+            let dv = (traj.velocities[i][c] - vel[c]).abs();
+            if dv > tol { v.push(Violation { name: "coast_vel".into(), index: i, residual: dv }); }
+        }
+        let dz = (traj.z_values[i] - cfg.log_wet_mass()).abs();
+        if dz > tol { v.push(Violation { name: "coast_mass".into(), index: i, residual: dz }); }
+        let off = norm3(&traj.u_values[i]);
+        if off > tol { v.push(Violation { name: "coast_thrust".into(), index: i, residual: off }); }
+        let gs = traj.positions[i][2] - sin * norm3(&traj.positions[i]);
+        if gs < -tol { v.push(Violation { name: "glide_slope".into(), index: i, residual: -gs }); }
+        let vb = cfg.spacecraft.max_velocity - norm3(&traj.velocities[i]);
+        if vb < -tol { v.push(Violation { name: "max_velocity".into(), index: i, residual: -vb }); }
+    }
+    // burn: slice off the coast and validate as a plain descent whose initial
+    // state is the coast endpoint
+    let burn_cfg = crate::coast::coast_config(cfg, t_c);
+    let burn = Trajectory {
+        positions: traj.positions[k..].to_vec(),
+        velocities: traj.velocities[k..].to_vec(),
+        thrusts: traj.thrusts[k..].to_vec(),
+        normalized_thrusts: traj.normalized_thrusts[k..].to_vec(),
+        z_values: traj.z_values[k..].to_vec(),
+        u_values: traj.u_values[k..].to_vec(),
+        s_values: traj.s_values[k..].to_vec(),
+        objective: traj.objective,
+        final_mass: traj.final_mass,
+        time_of_flight: traj.time_of_flight - t_c,
+        time_points: traj.time_points[k..].iter().map(|t| t - t_c).collect(),
+        status: traj.status.clone(),
+        coast_duration: 0.0,
+    };
+    let mut bv = validate_burn(&burn_cfg, &burn, tol);
+    for viol in &mut bv {
+        viol.index += k; // report indices in the stitched trajectory's frame
+    }
+    v.append(&mut bv);
+    v
+}
+
+fn validate_burn(cfg: &Config, traj: &Trajectory, tol: f64) -> Vec<Violation> {
     let n = cfg.solver.n;
     // Derive against the trajectory's actual time-of-flight: the config may
     // have `time_of_flight: None` (search path), but the per-step log-mass
@@ -181,6 +237,27 @@ mod tests {
         cfg.solver.time_of_flight = Some(44.63);
         cfg.environment.max_angle_deg = 90.0;
         assert!(solve(&cfg).is_err(), "expected pointing-induced infeasibility");
+    }
+
+    #[test]
+    fn lunar_trap_coast_solution_is_physical() {
+        // Same trap as catches_realized_thrust_below_min, but with coast
+        // enabled the returned trajectory must validate: ballistic coast
+        // nodes, then a burn inside the throttle band (marginal LCvx
+        // looseness at most).
+        let mut cfg = Config::default();
+        cfg.spacecraft.initial_position = [200.0, -150.0, 1500.0];
+        cfg.spacecraft.initial_velocity = [-20.0, 5.0, -5.0];
+        cfg.environment.gravity = [0.0, 0.0, -1.62];
+        cfg.solver.n = 40;
+        cfg.solver.allow_coast = true;
+        let traj = solve(&cfg).unwrap();
+        assert!(traj.coast_duration > 0.0);
+        let v = validate(&cfg, &traj, 1e-4);
+        assert!(
+            v.iter().all(|x| x.name == "min_thrust_realized" && x.residual < 1e-2),
+            "coast solution should be physical (marginal looseness at most): {v:?}"
+        );
     }
 
     #[test]
