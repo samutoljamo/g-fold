@@ -22,18 +22,19 @@ export default function StatusBar({ trajectory, error }: Props) {
       </div>
     );
   }
+  const coastDuration = trajectory.coast_duration ?? 0;
   return (
     <div className="px-3 py-2.5 rounded-md flex gap-4 flex-wrap text-sm bg-emerald-950 border border-emerald-700 text-emerald-100">
       <span className="font-mono text-[10px] tracking-widest uppercase text-emerald-500 self-center">Solved</span>
       <span><span className="text-emerald-400">Status</span> {trajectory.status}</span>
       <span><span className="text-emerald-400">Final mass</span> {trajectory.final_mass.toFixed(1)} kg</span>
       <span><span className="text-emerald-400">ToF</span> {trajectory.time_of_flight.toFixed(2)} s</span>
-      {(trajectory.coast_duration ?? 0) > 0 && (
+      {coastDuration > 0 && (
         <span>
           <span className="text-emerald-400">Coast</span>{" "}
-          {(trajectory.coast_duration ?? 0).toFixed(2)} s
+          {coastDuration.toFixed(2)} s
           <span className="text-emerald-400"> · Burn</span>{" "}
-          {(trajectory.time_of_flight - (trajectory.coast_duration ?? 0)).toFixed(2)} s
+          {(trajectory.time_of_flight - coastDuration).toFixed(2)} s
         </span>
       )}
       <span><span className="text-emerald-400">Objective</span> {trajectory.objective.toFixed(2)}</span>
