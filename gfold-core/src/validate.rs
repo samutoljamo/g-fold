@@ -20,6 +20,7 @@ pub fn validate(cfg: &Config, traj: &Trajectory, tol: f64) -> Vec<Violation> {
         return validate_burn(cfg, traj, tol);
     }
     let t_c = traj.coast_duration;
+    // strict-less: nodes at exactly t_c belong to the burn (first burn node == coast endpoint)
     let k = traj.time_points.iter().filter(|t| **t < t_c).count();
     let sin = cfg.sin_glide_slope();
     let mut v = Vec::new();
@@ -33,6 +34,7 @@ pub fn validate(cfg: &Config, traj: &Trajectory, tol: f64) -> Vec<Violation> {
             let dv = (traj.velocities[i][c] - vel[c]).abs();
             if dv > tol { v.push(Violation { name: "coast_vel".into(), index: i, residual: dv }); }
         }
+        // mass is constant during coast at the original wet mass (coast_config leaves wet_mass untouched)
         let dz = (traj.z_values[i] - cfg.log_wet_mass()).abs();
         if dz > tol { v.push(Violation { name: "coast_mass".into(), index: i, residual: dz }); }
         let off = norm3(&traj.u_values[i]);
@@ -55,7 +57,7 @@ pub fn validate(cfg: &Config, traj: &Trajectory, tol: f64) -> Vec<Violation> {
         s_values: traj.s_values[k..].to_vec(),
         objective: traj.objective,
         final_mass: traj.final_mass,
-        time_of_flight: traj.time_of_flight - t_c,
+        time_of_flight: traj.time_of_flight - t_c, // prepend_coast set total = t_c + burn_tof
         time_points: traj.time_points[k..].iter().map(|t| t - t_c).collect(),
         status: traj.status.clone(),
         coast_duration: 0.0,
