@@ -18,6 +18,10 @@ pub struct Trajectory {
     pub final_mass: f64,
     pub time_of_flight: f64,
     pub time_points: Vec<f64>,
+    /// Engine-off ballistic coast prepended before ignition (seconds).
+    /// Zero for a pure burn. `time_of_flight` includes it.
+    #[serde(default)]
+    pub coast_duration: f64,
     pub status: String,
 }
 
@@ -84,6 +88,7 @@ pub fn solve_fixed(cfg: &Config, tof: f64) -> Result<Trajectory, String> {
         final_mass: z_final.exp(),
         time_of_flight: tof,
         time_points,
+        coast_duration: 0.0,
         status: format!("{:?}", status),
     })
 }
@@ -114,6 +119,17 @@ mod tests {
         let json = serde_json::to_string(&traj).expect("serialize");
         assert!(json.contains("\"positions\""));
         assert!(json.contains("\"final_mass\""));
+    }
+
+    #[test]
+    fn coast_duration_defaults_zero_and_tolerates_old_json() {
+        let traj = solve_fixed(&Config::default(), 44.63).expect("solve");
+        assert_eq!(traj.coast_duration, 0.0);
+        // JSON saved before the field existed still deserializes
+        let mut val: serde_json::Value = serde_json::to_value(&traj).unwrap();
+        val.as_object_mut().unwrap().remove("coast_duration");
+        let back: Trajectory = serde_json::from_value(val).unwrap();
+        assert_eq!(back.coast_duration, 0.0);
     }
 
     #[test]
