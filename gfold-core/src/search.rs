@@ -98,6 +98,11 @@ const HINT_ITERS: usize = 8;
 /// and trajectory, or None when infeasible or lossy. `tof_hint` (the previous
 /// candidate's burn ToF) shrinks the inner search: the optimal burn time
 /// moves smoothly with the coast duration.
+///
+/// The warm bracket assumes the optimal burn ToF drifts slowly with t_c
+/// (~15-20% per grid step in practice). A stale hint can make a probe read
+/// as infeasible, degrading the golden refine toward grid resolution — the
+/// final full-bounds re-solve keeps the returned trajectory unbiased.
 fn coast_candidate(cfg: &Config, t_c: f64, tof_hint: Option<f64>) -> Option<(f64, Trajectory)> {
     let ccfg = coast::coast_config(cfg, t_c);
     let (tof, traj) = match tof_hint {
@@ -128,6 +133,12 @@ fn coast_candidate(cfg: &Config, t_c: f64, tof_hint: Option<f64>) -> Option<(f64
 /// coast duration is swept and refined like the ToF itself. `t_c = 0` is
 /// always sampled, so enabling coast can never lose fuel beyond search
 /// resolution.
+///
+/// Cost: on the order of a few hundred SOCP solves (opt-in via
+/// `allow_coast`). Note the stricter failure mode: when no admissible coast
+/// exists and the pure burn is lossy (realized thrust below the floor),
+/// this returns an error where `search_tof` would return the unflyable
+/// trajectory.
 pub fn search_coast(cfg: &Config) -> Result<(f64, Trajectory), String> {
     let t_max = coast::max_coast(cfg);
     let samples = if t_max > 0.0 { COAST_SAMPLES } else { 1 };
@@ -148,7 +159,8 @@ pub fn search_coast(cfg: &Config) -> Result<(f64, Trajectory), String> {
     let mut t_best = step * bi as f64;
     if t_max > 0.0 {
         let lo = step * bi.saturating_sub(1) as f64;
-        let hi = step * ((bi + 1).min(COAST_SAMPLES - 1) as f64);
+        let hi_idx = (bi + 1).min(COAST_SAMPLES - 1);
+        let hi = step * hi_idx as f64;
         let mut h = hint;
         let (t, _) = golden_max(
             |t_c| {
